@@ -139,6 +139,29 @@ pipelines:
       store_dir: ${VERDICT_STORE_DIR}
       status: decided
 
+  # ---- INV-3 guard: spec must be present in the implementation diff ----
+  - label: spec-check
+    config_dir: ${PLUGIN_ROOT}/workflows/spec-gen/spec-check
+    input:
+      workspace_repo: ${WORKSPACE_REPO}
+      pr_store_dir: ${PR_STORE_DIR}
+      trigger_store_dir: ${TRIGGER_STORE_DIR}
+      loop_store_cli: ${LOOP_STORE_CLI}
+    claim:
+      store_dir: ${PR_STORE_DIR}
+      from: approved
+      to: checking
+      by: spec-check
+      bind:
+        pr_id: id
+        spec_id: spec_id
+        spec_file: spec_file
+        branch: branch
+        base_commit: base_commit
+    pending:
+      store_dir: ${PR_STORE_DIR}
+      status: approved
+
   - label: deploy
     config_dir: ${DD_PLUGIN_ROOT}/workflows/spec/deploy
     input:
@@ -151,7 +174,7 @@ pipelines:
       deploy_log_dir: ${RUN_ROOT}/logs
     claim:
       store_dir: ${PR_STORE_DIR}
-      from: approved
+      from: ready-to-deploy
       to: deploying
       by: deploy
       bind:
@@ -162,4 +185,4 @@ pipelines:
         base_commit: base_commit
     pending:
       store_dir: ${PR_STORE_DIR}
-      status: approved
+      status: ready-to-deploy

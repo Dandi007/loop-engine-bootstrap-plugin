@@ -1,0 +1,18 @@
+limits: { max_nodes: 1, wall_clock: 30, node_timeout: 10, max_retries: 0, concurrency: 1 }
+harness:
+  sh: { runtime: bash, write: false }
+seed:
+  - identity: spec-checker
+    mode: fresh
+    template: spec-check
+    harness: sh
+    payload:
+      workspace_repo: "{{workspace_repo}}"
+      pr_store_dir: "{{pr_store_dir}}"
+      trigger_store_dir: "{{trigger_store_dir}}"
+      loop_store_cli: "{{loop_store_cli}}"
+      pr_id: "{{pr_id}}"
+      spec_id: "{{spec_id}}"
+      spec_file: "{{spec_file}}"
+      branch: "{{branch}}"
+      base_commit: "{{base_commit}}"

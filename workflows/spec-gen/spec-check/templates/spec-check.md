@@ -1,0 +1,52 @@
+set -euo pipefail
+repo="{{workspace_repo}}"
+base_commit="{{base_commit}}"
+branch="{{branch}}"
+loop_store_cli="{{loop_store_cli}}"
+pr_store_dir="{{pr_store_dir}}"
+trigger_store_dir="{{trigger_store_dir}}"
+pr_id="$(cat <<'EOF'
+{{pr_id}}
+EOF
+)"
+spec_id="$(cat <<'EOF'
+{{spec_id}}
+EOF
+)"
+spec_file="$(cat <<'EOF'
+{{spec_file}}
+EOF
+)"
+
+# INV-3 guard: the implementation branch must contain the approved spec in its diff.
+if git -C "$repo" diff --name-only "$base_commit".."$branch" | grep -qE '^docs/specs/SPEC-[^/]+\.md$'; then
+  node "$loop_store_cli" "$pr_store_dir" update "$pr_id" '{"status":"ready-to-deploy"}' checking >/dev/null
+  RESULT="spec-check passed $pr_id" node -e '
+process.stdout.write(JSON.stringify({
+  result: process.env.RESULT,
+  effects: [{ op: "halt" }],
+}));
+'
+else
+  # Reject back to the Impl Loop trigger store so the worker retries.
+  base_spec_id="${spec_id%%-r[0-9]*}"
+  redo_spec_id="$base_spec_id-r$(date +%s)"
+  redo_payload="$(
+    REDO_SPEC_ID="$redo_spec_id" SPEC_FILE="$spec_file" node -e '
+process.stdout.write(JSON.stringify({
+  id: process.env.REDO_SPEC_ID,
+  status: "open",
+  spec_file: process.env.SPEC_FILE,
+  feedback: "REJECT: the implementation branch does not contain docs/specs/SPEC-*.md in its diff. Commit the approved spec into the workspace repo on the implementation branch and try again.",
+}));
+'
+  )"
+  node "$loop_store_cli" "$trigger_store_dir" put "$redo_payload" >/dev/null
+  node "$loop_store_cli" "$pr_store_dir" update "$pr_id" '{"status":"rejected"}' checking >/dev/null
+  RESULT="spec-check rejected $pr_id" node -e '
+process.stdout.write(JSON.stringify({
+  result: process.env.RESULT,
+  effects: [{ op: "halt" }],
+}));
+'
+fi

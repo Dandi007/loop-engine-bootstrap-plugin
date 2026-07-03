@@ -1,0 +1,29 @@
+limits: { max_nodes: 1, wall_clock: 10800, node_timeout: 10800, max_retries: 1, concurrency: 1 }
+harness:
+  drafter:
+    runtime: "{{runtime}}"
+    model: "{{model}}"
+    write: true
+    workspace: "{{workspace_repo}}"
+    persona: personas/drafter.md
+    max_turns: 200
+    env:
+      CLAUDE_CONFIG_DIR: "{{claude_config_dir}}"
+routes:
+  spec-pr: "{{spec_pr_store_dir}}"
+seed:
+  - identity: drafter
+    mode: fresh
+    template: draft
+    harness: drafter
+    payload:
+      model: "{{model}}"
+      runtime: "{{runtime}}"
+      claude_config_dir: "{{claude_config_dir}}"
+      workspace_repo: "{{workspace_repo}}"
+      spec_pr_store_dir: "{{spec_pr_store_dir}}"
+      ref_library_dir: "{{ref_library_dir}}"
+      ref_library_index: "{{ref_library_index}}"
+      idea_id: "{{idea_id}}"
+      feedback: "{{feedback}}"
+      feedback_file: "{{feedback_file?}}"

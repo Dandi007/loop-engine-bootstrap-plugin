@@ -1,0 +1,27 @@
+limits: { max_nodes: 2, wall_clock: 3600, node_timeout: 3400, max_retries: 1, concurrency: 1 }
+harness:
+  spec-reviewer:
+    runtime: claude-code
+    model: "{{model}}"
+    write: false
+    workspace: "{{workspace_repo}}"
+    persona: personas/spec-reviewer.md
+    max_turns: 120
+    env:
+      CLAUDE_CONFIG_DIR: "{{claude_config_dir}}"
+routes:
+  verdict: "{{spec_verdict_store_dir}}"
+seed:
+  - identity: spec-reviewer
+    mode: fresh
+    template: spec-review
+    harness: spec-reviewer
+    payload:
+      model: "{{model}}"
+      claude_config_dir: "{{claude_config_dir}}"
+      workspace_repo: "{{workspace_repo}}"
+      spec_pr_id: "{{spec_pr_id}}"
+      spec_id: "{{spec_id}}"
+      spec_file: "{{spec_file}}"
+      ref_library_dir: "{{ref_library_dir}}"
+      ref_library_index: "{{ref_library_index}}"

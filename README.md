@@ -9,17 +9,18 @@
 
 ```
 workflows/
-  fleet.yaml.tpl              # 单一 fleet：Spec Loop + Impl Loop 共 7 条 pipeline
+  fleet.yaml.tpl              # 单一 fleet：Spec Loop + Impl Loop 共 8 条 pipeline
   spec-gen/
     draft/                    # 原创 spec 起草者
     review/                   # spec 质量审查 + 参考库查重
     rework/                   # APPROVE→Impl trigger / REJECT→idea store
+    spec-check/               # INV-3 守卫：impl diff 必须包含 docs/specs/SPEC-*.md
 bin/
   bootstrap-loop.sh           # 环境准备 + 播种 idea + `loop-engine drain`
 scripts/
   render-template.mjs         # fleet 模板渲染
 tests/
-  acceptance.sh               # 确定性结构/schema 验收（不计费）
+  acceptance.sh               # 确定性结构/schema/全链路状态流验收（不计费）
 ```
 
 Store 目录拓扑（`$RUN_ROOT/stores/`）：
@@ -59,4 +60,4 @@ bash bin/bootstrap-loop.sh
 npm test
 ```
 
-验收脚本不调用 LLM；它验证关键文件存在、fleet 模板可被渲染、渲染后的 manifest 可通过 loop-engine schema 校验，并断言 Impl Loop 四个 pipeline 的 `config_dir` 指向 dev-dispatch 而非本地拷贝。
+验收脚本不调用 LLM；它验证关键文件存在、fleet 模板可被渲染、渲染后的 manifest 可通过 loop-engine schema 校验，断言 Impl Loop 四个 pipeline 的 `config_dir` 指向 dev-dispatch 而非本地拷贝，并做确定性全链路 store 状态流测试（spec-rework / spec-check）。

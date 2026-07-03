@@ -2,7 +2,9 @@
 
 自举双 Loop plugin：一个 `fleet.yaml` 串联 Spec Loop（起草↔审）与 Impl Loop（实现↔审，复用 dev-dispatch spec mode）。
 
-- 设计文档：`/data/code/self/loop-engine-dev-dispatch-plugin/.runtime/spec/bootstrap-kimi-v2-20260704-010326/spec.md`
+> **实操 guide（怎么真跑起来、产物在哪、踩过的坑）：见 [`docs/USAGE.md`](docs/USAGE.md)。**
+
+- 设计文档：`/data/vault/智元工作/工作记录/2026/07/03/loop-engine-自举双loop-plugin-设计/spec.md`（repo 类别：vault 知识库）
 - 形态硬约束：一个 plugin、一个 fleet 定义、loop 间靠 store 一跳 route，无胶水脚本；先串行。
 
 ## 结构

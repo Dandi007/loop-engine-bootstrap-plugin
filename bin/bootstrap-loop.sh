@@ -59,7 +59,7 @@ export DD_WORK_MODEL="${DD_WORK_MODEL:-$BOOT_DRAFT_MODEL}"
 export DD_WORK_RUNTIME="${DD_WORK_RUNTIME:-claude-code}"
 export DD_REVIEW_MODEL="${DD_REVIEW_MODEL:-set_claude_ccswitch_glm}"
 export DD_CLAUDE_CONFIG_DIR="${DD_CLAUDE_CONFIG_DIR:-$BOOT_CLAUDE_CONFIG_DIR}"
-export DD_ACCEPT_CMD="${DD_ACCEPT_CMD:-make gate}"
+export DD_ACCEPT_CMD="${DD_ACCEPT_CMD:-make gate BASE=origin/main BRANCH=\$(git rev-parse --abbrev-ref HEAD)}"
 export BOOT_MAX_PASSES="${BOOT_MAX_PASSES:-64}"
 export BOOT_MERGE_MAX_PASSES="${BOOT_MERGE_MAX_PASSES:-16}"
 

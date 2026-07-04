@@ -227,8 +227,8 @@ RENDER
   store_get() { node "$LOOP_STORE_CLI" "$1" get "$2"; }
   store_by_status() { node "$LOOP_STORE_CLI" "$1" list "$2"; }
 
-  # --- spec-rework APPROVE produces an open trigger record ---
-  echo "state-flow: spec-rework APPROVE → trigger"
+  # --- spec-rework APPROVE emits an enqueue trigger effect (no direct put) ---
+  echo "state-flow: spec-rework APPROVE → enqueue trigger effect"
   sr_approve_root="$STATE_ROOT/sr-approve"
   sr_idea="$sr_approve_root/idea"
   sr_trigger="$sr_approve_root/trigger"
@@ -237,7 +237,6 @@ RENDER
   store_put "$sr_verdict" "$(printf '{"id":"verdict-SPEC-002","status":"decided","spec_id":"SPEC-002","spec_file":"/tmp/SPEC-002.md","verdict":"APPROVE","feedback":"ok","feedback_file":""}')"
   sr_script="$sr_approve_root/run.sh"
   render_template "$ROOT/workflows/spec-gen/rework/templates/spec-rework.md" "$sr_script" \
-    "loop_store_cli=$LOOP_STORE_CLI" \
     "idea_store_dir=$sr_idea" \
     "trigger_store_dir=$sr_trigger" \
     "spec_verdict_id=verdict-SPEC-002" \
@@ -246,17 +245,24 @@ RENDER
     "verdict=APPROVE" \
     "feedback=ok" \
     "feedback_file="
-  bash "$sr_script" >/dev/null
+  sr_approve_out="$(bash "$sr_script")"
+  # INV: trigger store dir untouched (no direct put).
   sr_trigger_recs="$(store_by_status "$sr_trigger" open)"
-  if [ "$(echo "$sr_trigger_recs" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const a=JSON.parse(d);console.log(a.length)})')" -eq 1 ]; then
-    echo "ok: spec-rework APPROVE enqueued one open trigger record"
+  if echo "$sr_approve_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects[0];if(!a||a.op!=="enqueue"||a.queue!=="trigger"||a.task.id!=="SPEC-002"||a.task.status!=="open"||a.task.feedback!=="(none)"){console.error("bad enqueue effect");process.exit(1)}})'; then
+    echo "ok: spec-rework APPROVE emitted enqueue trigger effect"
   else
-    echo "FAIL: spec-rework APPROVE did not enqueue exactly one open trigger record: $sr_trigger_recs" >&2
+    echo "FAIL: spec-rework APPROVE did not emit expected enqueue effect: $sr_approve_out" >&2
+    fail=1
+  fi
+  if [ "$(echo "$sr_trigger_recs" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const a=JSON.parse(d);console.log(a.length)})')" -eq 0 ]; then
+    echo "ok: spec-rework APPROVE did not directly write trigger store"
+  else
+    echo "FAIL: spec-rework APPROVE wrote directly to trigger store: $sr_trigger_recs" >&2
     fail=1
   fi
 
-  # --- spec-rework REJECT produces an open idea record with feedback ---
-  echo "state-flow: spec-rework REJECT → idea"
+  # --- spec-rework REJECT emits an enqueue idea effect (no direct put) ---
+  echo "state-flow: spec-rework REJECT → enqueue idea effect"
   sr_reject_root="$STATE_ROOT/sr-reject"
   sr_idea="$sr_reject_root/idea"
   sr_trigger="$sr_reject_root/trigger"
@@ -265,7 +271,6 @@ RENDER
   store_put "$sr_verdict" "$(printf '{"id":"verdict-SPEC-003","status":"decided","spec_id":"SPEC-003","spec_file":"/tmp/SPEC-003.md","verdict":"REJECT","feedback":"too vague","feedback_file":""}')"
   sr_script="$sr_reject_root/run.sh"
   render_template "$ROOT/workflows/spec-gen/rework/templates/spec-rework.md" "$sr_script" \
-    "loop_store_cli=$LOOP_STORE_CLI" \
     "idea_store_dir=$sr_idea" \
     "trigger_store_dir=$sr_trigger" \
     "spec_verdict_id=verdict-SPEC-003" \
@@ -274,12 +279,18 @@ RENDER
     "verdict=REJECT" \
     "feedback=too vague" \
     "feedback_file="
-  bash "$sr_script" >/dev/null
+  sr_reject_out="$(bash "$sr_script")"
   sr_idea_recs="$(store_by_status "$sr_idea" open)"
-  if echo "$sr_idea_recs" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const a=JSON.parse(d);if(a.length!==1){console.error("expected 1, got "+a.length);process.exit(1)}const r=a[0];if(r.status!=="open"||!r.feedback.includes("REJECT")){console.error("bad record");process.exit(1)}})'; then
-    echo "ok: spec-rework REJECT enqueued one open idea record with feedback"
+  if echo "$sr_reject_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects[0];if(!a||a.op!=="enqueue"||a.queue!=="idea"||a.task.status!=="open"||!a.task.feedback.includes("Spec review REJECT")){console.error("bad enqueue effect");process.exit(1)}})'; then
+    echo "ok: spec-rework REJECT emitted enqueue idea effect with feedback"
   else
-    echo "FAIL: spec-rework REJECT did not enqueue the expected idea record: $sr_idea_recs" >&2
+    echo "FAIL: spec-rework REJECT did not emit expected enqueue effect: $sr_reject_out" >&2
+    fail=1
+  fi
+  if [ "$(echo "$sr_idea_recs" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const a=JSON.parse(d);console.log(a.length)})')" -eq 0 ]; then
+    echo "ok: spec-rework REJECT did not directly write idea store"
+  else
+    echo "FAIL: spec-rework REJECT wrote directly to idea store: $sr_idea_recs" >&2
     fail=1
   fi
 
@@ -353,7 +364,7 @@ RENDER
     "pr_id=pr-SPEC-005" \
     "spec_id=SPEC-005" \
     "spec_file=$sc_repo/docs/specs/SPEC-005.md"
-  bash "$sc_script" >/dev/null
+  sc_fail_out="$(bash "$sc_script")"
   sc_pr_rec="$(store_get "$sc_pr" pr-SPEC-005)"
   sc_trigger_recs="$(store_by_status "$sc_trigger" open)"
   if echo "$sc_pr_rec" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=JSON.parse(d);if(r.status!=="rejected"){console.error("expected rejected, got "+r.status);process.exit(1)}})'; then
@@ -362,10 +373,16 @@ RENDER
     echo "FAIL: spec-check did not reject PR when spec is missing: $sc_pr_rec" >&2
     fail=1
   fi
-  if [ "$(echo "$sc_trigger_recs" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const a=JSON.parse(d);console.log(a.length)})')" -eq 1 ]; then
-    echo "ok: spec-check enqueued a retry trigger when spec is missing"
+  if echo "$sc_fail_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects.find(x=>x.op==="enqueue"&&x.queue==="trigger");if(!a||a.task.status!=="open"||!a.task.feedback.includes("REJECT")){console.error("bad enqueue effect");process.exit(1)}})'; then
+    echo "ok: spec-check emitted enqueue trigger effect when spec is missing"
   else
-    echo "FAIL: spec-check did not enqueue exactly one retry trigger: $sc_trigger_recs" >&2
+    echo "FAIL: spec-check did not emit expected enqueue effect: $sc_fail_out" >&2
+    fail=1
+  fi
+  if [ "$(echo "$sc_trigger_recs" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const a=JSON.parse(d);console.log(a.length)})')" -eq 0 ]; then
+    echo "ok: spec-check did not directly write trigger store when spec is missing"
+  else
+    echo "FAIL: spec-check wrote directly to trigger store: $sc_trigger_recs" >&2
     fail=1
   fi
 
@@ -442,7 +459,7 @@ RENDER
     "spec_file=/tmp/SPEC-007.md" \
     "branch=dd/SPEC-007" \
     "base_commit=$(git -C "$dv_repo" rev-parse HEAD)"
-  bash "$dv_script" >/dev/null
+  dv_fail_out="$(bash "$dv_script")"
   dv_pr_rec="$(store_get "$dv_pr" pr-SPEC-007)"
   dv_trigger_recs="$(store_by_status "$dv_trigger" open)"
   if echo "$dv_pr_rec" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=JSON.parse(d);if(r.status!=="verify_failed"){console.error("expected verify_failed, got "+r.status);process.exit(1)}})'; then
@@ -451,10 +468,16 @@ RENDER
     echo "FAIL: deploy-verify did not mark PR as verify_failed: $dv_pr_rec" >&2
     fail=1
   fi
-  if [ "$(echo "$dv_trigger_recs" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const a=JSON.parse(d);console.log(a.length)})')" -eq 1 ]; then
-    echo "ok: deploy-verify enqueued a retry trigger on failure"
+  if echo "$dv_fail_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects.find(x=>x.op==="enqueue"&&x.queue==="trigger");if(!a||a.task.status!=="open"||!a.task.feedback.includes("Deploy-verify acceptance FAILED")){console.error("bad enqueue effect");process.exit(1)}})'; then
+    echo "ok: deploy-verify emitted enqueue trigger effect on failure"
   else
-    echo "FAIL: deploy-verify did not enqueue exactly one retry trigger: $dv_trigger_recs" >&2
+    echo "FAIL: deploy-verify did not emit expected enqueue effect: $dv_fail_out" >&2
+    fail=1
+  fi
+  if [ "$(echo "$dv_trigger_recs" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const a=JSON.parse(d);console.log(a.length)})')" -eq 0 ]; then
+    echo "ok: deploy-verify did not directly write trigger store on failure"
+  else
+    echo "FAIL: deploy-verify wrote directly to trigger store: $dv_trigger_recs" >&2
     fail=1
   fi
 
@@ -548,7 +571,7 @@ RENDER
     "spec_file=/tmp/SPEC-009.md" \
     "branch=dd/SPEC-009" \
     "base_commit=$mg_base"
-  bash "$mg_script" >/dev/null
+  mg_conflict_out="$(bash "$mg_script")"
   mg_pr_rec="$(store_get "$mg_pr" pr-SPEC-009)"
   mg_trigger_recs="$(store_by_status "$mg_trigger" open)"
   if echo "$mg_pr_rec" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=JSON.parse(d);if(r.status!=="merge_conflict"){console.error("expected merge_conflict, got "+r.status);process.exit(1)}})'; then
@@ -557,12 +580,36 @@ RENDER
     echo "FAIL: merger did not mark PR as merge_conflict: $mg_pr_rec" >&2
     fail=1
   fi
-  if [ "$(echo "$mg_trigger_recs" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const a=JSON.parse(d);console.log(a.length)})')" -eq 1 ]; then
-    echo "ok: merger enqueued a retry trigger on conflict"
+  if echo "$mg_conflict_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects.find(x=>x.op==="enqueue"&&x.queue==="trigger");if(!a||a.task.status!=="open"||!a.task.feedback.includes("Merge phase FAILED")){console.error("bad enqueue effect");process.exit(1)}})'; then
+    echo "ok: merger emitted enqueue trigger effect on conflict"
   else
-    echo "FAIL: merger did not enqueue exactly one retry trigger: $mg_trigger_recs" >&2
+    echo "FAIL: merger did not emit expected enqueue effect: $mg_conflict_out" >&2
     fail=1
   fi
+  if [ "$(echo "$mg_trigger_recs" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const a=JSON.parse(d);console.log(a.length)})')" -eq 0 ]; then
+    echo "ok: merger did not directly write trigger store on conflict"
+  else
+    echo "FAIL: merger wrote directly to trigger store: $mg_trigger_recs" >&2
+    fail=1
+  fi
+fi
+
+# --- enqueue-routes integration tests (SPEC-001-b0-plugin-enqueue-routes) ---
+echo "running enqueue-routes integration tests"
+if bash "$ROOT/tests/enqueue-routes.test.sh"; then
+  echo "ok: enqueue-routes tests passed"
+else
+  echo "FAIL: enqueue-routes tests failed" >&2
+  fail=1
+fi
+
+# --- grep assertion: no direct put calls remain in migrated templates ---
+put_count="$(grep -rn 'node.*loop_store_cli.*put\|"$loop_store_cli".*put' "$ROOT/workflows/spec-gen/rework/templates/spec-rework.md" "$ROOT/workflows/spec-gen/spec-check/templates/spec-check.md" "$ROOT/workflows/spec-gen/deploy-verify/templates/deploy-verify.md" "$ROOT/workflows/spec-gen/merger/templates/merger.md" 2>/dev/null | wc -l | tr -d ' ' || true)"
+if [ "$put_count" -eq 0 ]; then
+  echo "ok: no direct put calls in migrated templates"
+else
+  echo "FAIL: $put_count direct put call(s) remain in migrated templates" >&2
+  fail=1
 fi
 
 if [ "$fail" -ne 0 ]; then echo "acceptance FAILED"; exit 1; fi

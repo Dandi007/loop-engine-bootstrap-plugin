@@ -3,7 +3,7 @@ set -euo pipefail
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RUN_ID="${BOOT_RUN_ID:-$(date +%Y%m%d-%H%M%S)}"
-RUN_ROOT="${BOOT_RUN_ROOT:-$PLUGIN_ROOT/.runtime/live/$RUN_ID}"
+RUN_ROOT="${BOOT_RUN_ROOT:-$HOME/.loop-engine/bootstrap/$RUN_ID}"
 
 LOOP_ENGINE_CLI="${LOOP_ENGINE_CLI:-/data/code/self/loop-engine/dist/cli.js}"
 LOOP_STORE_CLI="${LOOP_STORE_CLI:-/data/code/self/loop-engine/dist/lib/store-cli.js}"
@@ -34,6 +34,7 @@ fi
 
 mkdir -p "$RUN_ROOT"
 export PLUGIN_ROOT RUN_ROOT LOOP_ENGINE_CLI LOOP_STORE_CLI DD_PLUGIN_ROOT
+export LOOP_ENGINE_RUNTIME_ROOT="${LOOP_ENGINE_RUNTIME_ROOT:-$HOME/.loop-engine}"
 
 # Store directories (same as before, PR_STORE_DIR reused for merge statuses).
 export IDEA_STORE_DIR="$RUN_ROOT/stores/idea"

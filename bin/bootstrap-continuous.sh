@@ -29,7 +29,7 @@ while true; do
 
   export NODE_OPTIONS="--import file:///data/code/self/loop-engine/node_modules/tsx/dist/loader.mjs"
   export DD_REVIEW_MODEL="${DD_REVIEW_MODEL:-set_claude_ccswitch_glm}"
-  export DD_ACCEPT_CMD="${DD_ACCEPT_CMD:-make gate}"
+  export DD_ACCEPT_CMD="${DD_ACCEPT_CMD:-make gate BASE=origin/main BRANCH=\$(git rev-parse --abbrev-ref HEAD)}"
   export BOOT_MAX_PASSES="${BOOT_MAX_PASSES:-64}"
   export BOOT_MERGE_MAX_PASSES="${BOOT_MERGE_MAX_PASSES:-16}"
 

@@ -19,6 +19,7 @@ EOF
 )"
 
 # INV-3 guard: the approved spec must exist on the implementation branch.
+# 注：本检查是快速预检；最终裁决以目标 repo `make gate`（scripts/mr-gate.sh）为准。
 # We check the branch tree directly (not the diff) because the spec file is
 # committed to main by the drafter before the work branch is created.
 # git show needs a repo-relative path, so strip the workspace_repo prefix.

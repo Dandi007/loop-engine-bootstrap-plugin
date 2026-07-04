@@ -41,6 +41,10 @@ if git -C "$repo" merge --no-ff "$branch" -m "merge(bootstrap): $pr_id ($spec_id
   # Merge succeeded. Run acceptance tests on the merged result.
   if (cd "$repo" && sh -lc "$accept_cmd") > "$accept_log" 2>&1; then
     merge_status="merged"
+    # Push the merged main to GitHub.
+    git -C "$repo" push origin "$base_branch" >/dev/null 2>&1 || true
+    # Close the GitHub PR (merge already done locally).
+    (cd "$repo" && gh pr close "$branch" -d 2>/dev/null) || true
   else
     # Tests failed after merge. Roll back.
     git -C "$repo" reset --hard "$before" >/dev/null

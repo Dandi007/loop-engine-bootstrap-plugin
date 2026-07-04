@@ -121,7 +121,6 @@ pipelines:
     input:
       trigger_store_dir: ${TRIGGER_STORE_DIR}
       pr_store_dir: ${PR_STORE_DIR}
-      loop_store_cli: ${LOOP_STORE_CLI}
     claim:
       store_dir: ${VERDICT_STORE_DIR}
       from: decided

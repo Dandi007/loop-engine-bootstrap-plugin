@@ -459,5 +459,23 @@ if [ "$fail" -eq 0 ]; then
   echo "ok: TC-11 trigger_store_dir retained in all three payloads"
 fi
 
+# ---------------------------------------------------------------------------
+# TC-12: §5 fleet template full purge — loop_store_cli must be 0 lines across
+# the whole fleet-impl.yaml.tpl and fleet-merge.yaml.tpl (not just the
+# spec-check/deploy-verify/merger input sections). This is the literal §5
+# acceptance grep.
+# ---------------------------------------------------------------------------
+echo "TC-12: §5 fleet templates fully purged of loop_store_cli (0 lines)"
+fleet_loop_cli_count="$(grep -n 'loop_store_cli' \
+  "$ROOT/workflows/fleet-impl.yaml.tpl" \
+  "$ROOT/workflows/fleet-merge.yaml.tpl" 2>/dev/null | grep -v '^Binary' | wc -l | tr -d ' ' || true)"
+if [ "$fleet_loop_cli_count" -eq 0 ]; then
+  echo "ok: TC-12 fleet-impl/fleet-merge contain 0 loop_store_cli lines"
+else
+  echo "FAIL: TC-12 fleet templates still reference loop_store_cli ($fleet_loop_cli_count lines):" >&2
+  grep -n 'loop_store_cli' "$ROOT/workflows/fleet-impl.yaml.tpl" "$ROOT/workflows/fleet-merge.yaml.tpl" 2>/dev/null >&2
+  fail=1
+fi
+
 if [ "$fail" -ne 0 ]; then echo "complete-effect FAILED"; exit 1; fi
 echo "complete-effect PASSED"

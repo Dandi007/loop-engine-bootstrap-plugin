@@ -18,8 +18,10 @@ spec_file="$(cat <<'EOF'
 EOF
 )"
 
-# INV-3 guard: the implementation branch must contain the approved spec in its diff.
-if git -C "$repo" diff --name-only "$base_commit".."$branch" | grep -qE '^docs/specs/SPEC-[^/]+\.md$'; then
+# INV-3 guard: the approved spec must exist on the implementation branch.
+# We check the branch tree directly (not the diff) because the spec file is
+# committed to main by the drafter before the work branch is created.
+if git -C "$repo" show "$branch":"$spec_file" >/dev/null 2>&1; then
   node "$loop_store_cli" "$pr_store_dir" update "$pr_id" '{"status":"ready-to-deploy"}' checking >/dev/null
   RESULT="spec-check passed $pr_id" node -e '
 process.stdout.write(JSON.stringify({
@@ -37,7 +39,7 @@ process.stdout.write(JSON.stringify({
   id: process.env.REDO_SPEC_ID,
   status: "open",
   spec_file: process.env.SPEC_FILE,
-  feedback: "REJECT: the implementation branch does not contain docs/specs/SPEC-*.md in its diff. Commit the approved spec into the workspace repo on the implementation branch and try again.",
+  feedback: "REJECT: the approved spec file is missing from the implementation branch. Ensure the spec file is committed to the branch and try again.",
 }));
 '
   )"

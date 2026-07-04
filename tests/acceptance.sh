@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
-# Acceptance checks for loop-engine-bootstrap-plugin.
+# Acceptance checks for loop-engine-bootstrap-plugin (batch architecture).
 # These checks are deterministic and do not call LLMs.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 fail=0
 
+# ESM extension resolution: loop-engine dist uses .js-less imports, needs the loader.
+export NODE_OPTIONS="--import file:///data/code/self/loop-engine/scripts/register-node-esm-extension-loader.mjs"
+
 check(){ if [ ! -e "$ROOT/$1" ]; then echo "MISSING: $1" >&2; fail=1; else echo "ok: $1"; fi; }
 
+# File existence checks.
+check "workflows/fleet-impl.yaml.tpl"
+check "workflows/fleet-merge.yaml.tpl"
 check "workflows/fleet.yaml.tpl"
 check "workflows/spec-gen/draft/workflow.yaml"
 check "workflows/spec-gen/draft/personas/drafter.md"
@@ -18,7 +24,12 @@ check "workflows/spec-gen/rework/workflow.yaml"
 check "workflows/spec-gen/rework/templates/spec-rework.md"
 check "workflows/spec-gen/spec-check/workflow.yaml"
 check "workflows/spec-gen/spec-check/templates/spec-check.md"
+check "workflows/spec-gen/deploy-verify/workflow.yaml"
+check "workflows/spec-gen/deploy-verify/templates/deploy-verify.md"
+check "workflows/spec-gen/merger/workflow.yaml"
+check "workflows/spec-gen/merger/templates/merger.md"
 check "bin/bootstrap-loop.sh"
+check "bin/bootstrap-continuous.sh"
 check "scripts/render-template.mjs"
 
 ENGINE_ROOT="${LOOP_ENGINE_ROOT:-/data/code/self/loop-engine}"
@@ -47,7 +58,6 @@ else
   export BOOT_DRAFT_MODEL="test-model"
   export BOOT_DRAFT_RUNTIME="bash"
   export BOOT_REVIEW_MODEL="test-model"
-  export BOOT_WORK_MODEL="test-model"
   export BOOT_CLAUDE_CONFIG_DIR="$RUN_ROOT/.claude"
   export DD_WORK_MODEL="test-model"
   export DD_WORK_RUNTIME="bash"
@@ -55,45 +65,72 @@ else
   export DD_CLAUDE_CONFIG_DIR="$RUN_ROOT/.claude"
   export DD_ACCEPT_CMD="npm test"
   export BOOT_MAX_PASSES="8"
+  export BOOT_MERGE_MAX_PASSES="8"
   export LOOP_STORE_CLI="${LOOP_STORE_CLI:-$ENGINE_ROOT/dist/lib/store-cli.js}"
   export WORKSPACE_BASE_BRANCH="main"
 
   mkdir -p "$REF_LIBRARY_DIR"
   echo "# Reference library index" > "$REF_LIBRARY_INDEX"
 
-  RENDERED_FLEET="$RUN_ROOT/fleet.yaml"
-  node "$ROOT/scripts/render-template.mjs" "$ROOT/workflows/fleet.yaml.tpl" "$RENDERED_FLEET"
-  echo "ok: fleet.yaml rendered"
+  # --- Fleet-impl schema validation ---
+  RENDERED_FLEET_IMPL="$RUN_ROOT/fleet-impl.yaml"
+  node "$ROOT/scripts/render-template.mjs" "$ROOT/workflows/fleet-impl.yaml.tpl" "$RENDERED_FLEET_IMPL"
+  echo "ok: fleet-impl.yaml rendered"
 
-  export ENGINE_DIST_FLEET RENDERED_FLEET PLUGIN_ROOT
-
-  # Validate the rendered fleet manifest against loop-engine's schema.
-  schema_check_js="$(mktemp --suffix=.mjs)"
-  cat > "$schema_check_js" <<'NODE'
+  export ENGINE_DIST_FLEET
+  fleet_impl_js="$(mktemp --suffix=.mjs)"
+  cat > "$fleet_impl_js" <<'NODE'
 const { loadFleetManifest } = await import(process.env.ENGINE_DIST_FLEET);
 try {
-  const manifest = loadFleetManifest(process.env.RENDERED_FLEET);
+  const manifest = loadFleetManifest(process.env.RENDERED_FLEET_IMPL);
   const labels = manifest.pipelines.map((p) => p.label).sort();
-  const expected = ["deploy", "draft", "review", "rework", "spec-check", "spec-review", "spec-rework", "work"];
+  const expected = ["deploy-verify", "draft", "review", "rework", "spec-check", "spec-review", "spec-rework", "work"];
   if (JSON.stringify(labels) !== JSON.stringify(expected)) {
     console.error("unexpected pipeline labels: " + labels.join(","));
     process.exit(1);
   }
-  console.log("ok: fleet manifest schema valid");
+  console.log("ok: fleet-impl manifest schema valid");
 } catch (e) {
-  console.error("fleet manifest invalid: " + e.message);
+  console.error("fleet-impl manifest invalid: " + e.message);
   process.exit(1);
 }
 NODE
-  node "$schema_check_js" || fail=1
-  rm -f "$schema_check_js"
+  RENDERED_FLEET_IMPL="$RENDERED_FLEET_IMPL" node "$fleet_impl_js" || fail=1
+  rm -f "$fleet_impl_js"
 
-  # INV-2: Impl Loop four pipelines must point at dev-dispatch, not local copies.
+  # --- Fleet-merge schema validation ---
+  RENDERED_FLEET_MERGE="$RUN_ROOT/fleet-merge.yaml"
+  node "$ROOT/scripts/render-template.mjs" "$ROOT/workflows/fleet-merge.yaml.tpl" "$RENDERED_FLEET_MERGE"
+  echo "ok: fleet-merge.yaml rendered"
+
+  fleet_merge_js="$(mktemp --suffix=.mjs)"
+  cat > "$fleet_merge_js" <<'NODE'
+const { loadFleetManifest } = await import(process.env.ENGINE_DIST_FLEET);
+try {
+  const manifest = loadFleetManifest(process.env.RENDERED_FLEET_MERGE);
+  const labels = manifest.pipelines.map((p) => p.label).sort();
+  const expected = ["merger"];
+  if (JSON.stringify(labels) !== JSON.stringify(expected)) {
+    console.error("unexpected pipeline labels: " + labels.join(","));
+    process.exit(1);
+  }
+  console.log("ok: fleet-merge manifest schema valid");
+} catch (e) {
+  console.error("fleet-merge manifest invalid: " + e.message);
+  process.exit(1);
+}
+NODE
+  RENDERED_FLEET_MERGE="$RENDERED_FLEET_MERGE" node "$fleet_merge_js" || fail=1
+  rm -f "$fleet_merge_js"
+
+  # INV-2: Impl Loop pipelines (work, review, rework) must point at dev-dispatch, not local copies.
+  # deploy-verify and merger are new bootstrap-plugin pipelines that should point at local.
   impl_check_js="$(mktemp --suffix=.mjs)"
   cat > "$impl_check_js" <<'NODE'
 const { loadFleetManifest } = await import(process.env.ENGINE_DIST_FLEET);
-const manifest = loadFleetManifest(process.env.RENDERED_FLEET);
-const impl = ["work", "review", "rework", "deploy"];
+const manifest = loadFleetManifest(process.env.RENDERED_FLEET_IMPL);
+const impl = ["work", "review", "rework"];
+const local = ["deploy-verify", "spec-check", "draft", "spec-review", "spec-rework"];
 const localPrefix = process.env.PLUGIN_ROOT + "/";
 let ok = true;
 for (const label of impl) {
@@ -104,51 +141,62 @@ for (const label of impl) {
     ok = false;
   }
 }
-if (ok) console.log("ok: Impl Loop config_dirs point outside bootstrap plugin");
+for (const label of local) {
+  const p = manifest.pipelines.find((p) => p.label === label);
+  if (!p) { console.error("missing pipeline: " + label); ok = false; continue; }
+  if (!p.config_dir.startsWith(localPrefix)) {
+    console.error("FAIL: " + label + " config_dir is not local: " + p.config_dir);
+    ok = false;
+  }
+}
+if (ok) console.log("ok: INV-2 config_dir routing correct");
 else process.exit(1);
 NODE
-  node "$impl_check_js" || fail=1
+  RENDERED_FLEET_IMPL="$RENDERED_FLEET_IMPL" node "$impl_check_js" || fail=1
   rm -f "$impl_check_js"
 
-  # INV-1: bin/ contains only the bootstrap-loop driver, no inter-loop glue scripts.
-  bin_scripts=($(find "$ROOT/bin" -maxdepth 1 -type f ! -name '.gitkeep'))
-  if [ "${#bin_scripts[@]}" -eq 1 ] && [ "$(basename "${bin_scripts[0]}")" = "bootstrap-loop.sh" ]; then
-    echo "ok: bin/ has only bootstrap-loop.sh"
+  # INV-1: bin/ contains bootstrap-loop.sh and bootstrap-continuous.sh.
+  bin_scripts=($(find "$ROOT/bin" -maxdepth 1 -type f ! -name '.gitkeep' | sort))
+  if [ "${#bin_scripts[@]}" -eq 2 ] && [ "$(basename "${bin_scripts[0]}")" = "bootstrap-continuous.sh" ] && [ "$(basename "${bin_scripts[1]}")" = "bootstrap-loop.sh" ]; then
+    echo "ok: bin/ has bootstrap-continuous.sh + bootstrap-loop.sh"
   else
     echo "FAIL: bin/ contains unexpected scripts: ${bin_scripts[*]}" >&2
     fail=1
   fi
 
-  # INV-3: deploy must claim from a status guarded by the spec-check pipeline.
-  deploy_claim_js="$(mktemp --suffix=.mjs)"
-  cat > "$deploy_claim_js" <<'NODE'
+  # INV-3: deploy-verify must claim from ready-to-deploy (guarded by spec-check).
+  # merger must claim from ready-to-merge (guarded by deploy-verify).
+  inv3_js="$(mktemp --suffix=.mjs)"
+  cat > "$inv3_js" <<'NODE'
 const { loadFleetManifest } = await import(process.env.ENGINE_DIST_FLEET);
-const manifest = loadFleetManifest(process.env.RENDERED_FLEET);
-const deploy = manifest.pipelines.find((p) => p.label === "deploy");
+const manifest = loadFleetManifest(process.env.RENDERED_FLEET_IMPL);
+const mergeManifest = loadFleetManifest(process.env.RENDERED_FLEET_MERGE);
+const deployVerify = manifest.pipelines.find((p) => p.label === "deploy-verify");
 const specCheck = manifest.pipelines.find((p) => p.label === "spec-check");
+const merger = mergeManifest.pipelines.find((p) => p.label === "merger");
 let ok = true;
-if (!deploy) { console.error("missing deploy pipeline"); ok = false; }
+if (!deployVerify) { console.error("missing deploy-verify pipeline"); ok = false; }
 if (!specCheck) { console.error("missing spec-check pipeline"); ok = false; }
-if (deploy && deploy.claim?.from !== "ready-to-deploy") {
-  console.error("FAIL: deploy claims from " + deploy.claim.from + ", expected ready-to-deploy");
+if (!merger) { console.error("missing merger pipeline"); ok = false; }
+if (deployVerify && deployVerify.claim?.from !== "ready-to-deploy") {
+  console.error("FAIL: deploy-verify claims from " + deployVerify.claim?.from + ", expected ready-to-deploy");
   ok = false;
 }
 if (specCheck && specCheck.claim?.from !== "approved") {
-  console.error("FAIL: spec-check claims from " + specCheck.claim.from + ", expected approved");
+  console.error("FAIL: spec-check claims from " + specCheck.claim?.from + ", expected approved");
   ok = false;
 }
-if (specCheck && specCheck.claim?.to !== "checking") {
-  console.error("FAIL: spec-check transitions to " + specCheck.claim.to + ", expected checking");
+if (merger && merger.claim?.from !== "ready-to-merge") {
+  console.error("FAIL: merger claims from " + merger.claim?.from + ", expected ready-to-merge");
   ok = false;
 }
-if (ok) console.log("ok: deploy guarded by spec-check pipeline");
+if (ok) console.log("ok: INV-3 deploy-verify guarded by spec-check, merger guarded by deploy-verify");
 else process.exit(1);
 NODE
-  node "$deploy_claim_js" || fail=1
-  rm -f "$deploy_claim_js"
+  RENDERED_FLEET_IMPL="$RENDERED_FLEET_IMPL" RENDERED_FLEET_MERGE="$RENDERED_FLEET_MERGE" node "$inv3_js" || fail=1
+  rm -f "$inv3_js"
 
   # Deterministic full-chain store state-flow tests (no LLM calls).
-  # Use the engine's Store CLI and template fill to drive the pure-bash nodes.
   STATE_ROOT="$RUN_ROOT/state-flow"
   rm -rf "$STATE_ROOT"
   mkdir -p "$STATE_ROOT"
@@ -177,7 +225,6 @@ RENDER
 
   store_put() { node "$LOOP_STORE_CLI" "$1" put "$2"; }
   store_get() { node "$LOOP_STORE_CLI" "$1" get "$2"; }
-  store_list() { node "$LOOP_STORE_CLI" "$1" list; }
   store_by_status() { node "$LOOP_STORE_CLI" "$1" list "$2"; }
 
   # --- spec-rework APPROVE produces an open trigger record ---
@@ -236,14 +283,14 @@ RENDER
     fail=1
   fi
 
-  # --- spec-check APPROVE when spec is in diff ---
+  # --- spec-check APPROVE when spec is in diff → ready-to-deploy ---
   echo "state-flow: spec-check with spec in diff → ready-to-deploy"
   sc_pass_root="$STATE_ROOT/sc-pass"
   sc_repo="$sc_pass_root/repo"
   sc_pr="$sc_pass_root/pr"
   sc_trigger="$sc_pass_root/trigger"
   mkdir -p "$sc_repo" "$sc_pr" "$sc_trigger"
-  git init -q "$sc_repo"
+  git init -q --initial-branch=main "$sc_repo"
   git -C "$sc_repo" config user.name "Test"
   git -C "$sc_repo" config user.email "test@example.invalid"
   echo "base" > "$sc_repo/README.md"
@@ -283,7 +330,7 @@ RENDER
   sc_pr="$sc_fail_root/pr"
   sc_trigger="$sc_fail_root/trigger"
   mkdir -p "$sc_repo" "$sc_pr" "$sc_trigger"
-  git init -q "$sc_repo"
+  git init -q --initial-branch=main "$sc_repo"
   git -C "$sc_repo" config user.name "Test"
   git -C "$sc_repo" config user.email "test@example.invalid"
   echo "base" > "$sc_repo/README.md"
@@ -319,6 +366,201 @@ RENDER
     echo "ok: spec-check enqueued a retry trigger when spec is missing"
   else
     echo "FAIL: spec-check did not enqueue exactly one retry trigger: $sc_trigger_recs" >&2
+    fail=1
+  fi
+
+  # --- deploy-verify success: tests pass → ready-to-merge ---
+  echo "state-flow: deploy-verify success → ready-to-merge"
+  dv_pass_root="$STATE_ROOT/dv-pass"
+  dv_repo="$dv_pass_root/repo"
+  dv_pr="$dv_pass_root/pr"
+  dv_trigger="$dv_pass_root/trigger"
+  dv_log="$dv_pass_root/logs"
+  mkdir -p "$dv_repo" "$dv_pr" "$dv_trigger" "$dv_log"
+  git init -q --initial-branch=main "$dv_repo"
+  git -C "$dv_repo" config user.name "Test"
+  git -C "$dv_repo" config user.email "test@example.invalid"
+  echo "base" > "$dv_repo/README.md"
+  git -C "$dv_repo" add .
+  git -C "$dv_repo" commit -q -m "base"
+  git -C "$dv_repo" checkout -q -b "dd/SPEC-006"
+  echo "feature" > "$dv_repo/feature.js"
+  git -C "$dv_repo" add .
+  git -C "$dv_repo" commit -q -m "impl"
+  store_put "$dv_pr" "$(printf '{"id":"pr-SPEC-006","status":"verifying","spec_id":"SPEC-006","spec_file":"/tmp/SPEC-006.md","branch":"dd/SPEC-006","base_commit":"%s"}' "$(git -C "$dv_repo" rev-parse HEAD)")"
+  dv_script="$dv_pass_root/run.sh"
+  render_template "$ROOT/workflows/spec-gen/deploy-verify/templates/deploy-verify.md" "$dv_script" \
+    "workspace_repo=$dv_repo" \
+    "accept_cmd=true" \
+    "loop_store_cli=$LOOP_STORE_CLI" \
+    "trigger_store_dir=$dv_trigger" \
+    "pr_store_dir=$dv_pr" \
+    "deploy_log_dir=$dv_log" \
+    "pr_id=pr-SPEC-006" \
+    "spec_id=SPEC-006" \
+    "spec_file=/tmp/SPEC-006.md" \
+    "branch=dd/SPEC-006" \
+    "base_commit=$(git -C "$dv_repo" rev-parse HEAD)"
+  bash "$dv_script" >/dev/null
+  dv_pr_rec="$(store_get "$dv_pr" pr-SPEC-006)"
+  if echo "$dv_pr_rec" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=JSON.parse(d);if(r.status!=="ready-to-merge"){console.error("expected ready-to-merge, got "+r.status);process.exit(1)}})'; then
+    echo "ok: deploy-verify advanced PR to ready-to-merge on success"
+  else
+    echo "FAIL: deploy-verify did not advance PR to ready-to-merge: $dv_pr_rec" >&2
+    fail=1
+  fi
+
+  # --- deploy-verify failure: tests fail → verify_failed + retry trigger ---
+  echo "state-flow: deploy-verify failure → verify_failed + retry"
+  dv_fail_root="$STATE_ROOT/dv-fail"
+  dv_repo="$dv_fail_root/repo"
+  dv_pr="$dv_fail_root/pr"
+  dv_trigger="$dv_fail_root/trigger"
+  dv_log="$dv_fail_root/logs"
+  mkdir -p "$dv_repo" "$dv_pr" "$dv_trigger" "$dv_log"
+  git init -q --initial-branch=main "$dv_repo"
+  git -C "$dv_repo" config user.name "Test"
+  git -C "$dv_repo" config user.email "test@example.invalid"
+  echo "base" > "$dv_repo/README.md"
+  git -C "$dv_repo" add .
+  git -C "$dv_repo" commit -q -m "base"
+  git -C "$dv_repo" checkout -q -b "dd/SPEC-007"
+  echo "feature" > "$dv_repo/feature.js"
+  git -C "$dv_repo" add .
+  git -C "$dv_repo" commit -q -m "impl"
+  store_put "$dv_pr" "$(printf '{"id":"pr-SPEC-007","status":"verifying","spec_id":"SPEC-007","spec_file":"/tmp/SPEC-007.md","branch":"dd/SPEC-007","base_commit":"%s"}' "$(git -C "$dv_repo" rev-parse HEAD)")"
+  dv_script="$dv_fail_root/run.sh"
+  render_template "$ROOT/workflows/spec-gen/deploy-verify/templates/deploy-verify.md" "$dv_script" \
+    "workspace_repo=$dv_repo" \
+    "accept_cmd=false" \
+    "loop_store_cli=$LOOP_STORE_CLI" \
+    "trigger_store_dir=$dv_trigger" \
+    "pr_store_dir=$dv_pr" \
+    "deploy_log_dir=$dv_log" \
+    "pr_id=pr-SPEC-007" \
+    "spec_id=SPEC-007" \
+    "spec_file=/tmp/SPEC-007.md" \
+    "branch=dd/SPEC-007" \
+    "base_commit=$(git -C "$dv_repo" rev-parse HEAD)"
+  bash "$dv_script" >/dev/null
+  dv_pr_rec="$(store_get "$dv_pr" pr-SPEC-007)"
+  dv_trigger_recs="$(store_by_status "$dv_trigger" open)"
+  if echo "$dv_pr_rec" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=JSON.parse(d);if(r.status!=="verify_failed"){console.error("expected verify_failed, got "+r.status);process.exit(1)}})'; then
+    echo "ok: deploy-verify marked PR as verify_failed on failure"
+  else
+    echo "FAIL: deploy-verify did not mark PR as verify_failed: $dv_pr_rec" >&2
+    fail=1
+  fi
+  if [ "$(echo "$dv_trigger_recs" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const a=JSON.parse(d);console.log(a.length)})')" -eq 1 ]; then
+    echo "ok: deploy-verify enqueued a retry trigger on failure"
+  else
+    echo "FAIL: deploy-verify did not enqueue exactly one retry trigger: $dv_trigger_recs" >&2
+    fail=1
+  fi
+
+  # --- merger success: merge + test pass → merged ---
+  echo "state-flow: merger success → merged"
+  mg_pass_root="$STATE_ROOT/mg-pass"
+  mg_repo="$mg_pass_root/repo"
+  mg_pr="$mg_pass_root/pr"
+  mg_trigger="$mg_pass_root/trigger"
+  mg_log="$mg_pass_root/logs"
+  mkdir -p "$mg_repo" "$mg_pr" "$mg_trigger" "$mg_log"
+  git init -q --initial-branch=main "$mg_repo"
+  git -C "$mg_repo" config user.name "Test"
+  git -C "$mg_repo" config user.email "test@example.invalid"
+  echo "base" > "$mg_repo/README.md"
+  git -C "$mg_repo" add .
+  git -C "$mg_repo" commit -q -m "base"
+  mg_base="$(git -C "$mg_repo" rev-parse HEAD)"
+  git -C "$mg_repo" checkout -q -b "dd/SPEC-008"
+  echo "feature" > "$mg_repo/feature.js"
+  git -C "$mg_repo" add .
+  git -C "$mg_repo" commit -q -m "impl"
+  git -C "$mg_repo" checkout -q main
+  store_put "$mg_pr" "$(printf '{"id":"pr-SPEC-008","status":"merging","spec_id":"SPEC-008","spec_file":"/tmp/SPEC-008.md","branch":"dd/SPEC-008","base_commit":"%s"}' "$mg_base")"
+  mg_script="$mg_pass_root/run.sh"
+  render_template "$ROOT/workflows/spec-gen/merger/templates/merger.md" "$mg_script" \
+    "workspace_repo=$mg_repo" \
+    "base_branch=main" \
+    "accept_cmd=true" \
+    "loop_store_cli=$LOOP_STORE_CLI" \
+    "trigger_store_dir=$mg_trigger" \
+    "pr_store_dir=$mg_pr" \
+    "merge_log_dir=$mg_log" \
+    "pr_id=pr-SPEC-008" \
+    "spec_id=SPEC-008" \
+    "spec_file=/tmp/SPEC-008.md" \
+    "branch=dd/SPEC-008" \
+    "base_commit=$mg_base"
+  bash "$mg_script" >/dev/null
+  mg_pr_rec="$(store_get "$mg_pr" pr-SPEC-008)"
+  if echo "$mg_pr_rec" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=JSON.parse(d);if(r.status!=="merged"){console.error("expected merged, got "+r.status);process.exit(1)}})'; then
+    echo "ok: merger marked PR as merged on success"
+  else
+    echo "FAIL: merger did not mark PR as merged: $mg_pr_rec" >&2
+    fail=1
+  fi
+  # Verify the merge actually happened on main.
+  if git -C "$mg_repo" log --oneline main | head -1 | grep -q "merge(bootstrap)"; then
+    echo "ok: merger commit is on main branch"
+  else
+    echo "FAIL: merger commit not found on main branch" >&2
+    fail=1
+  fi
+
+  # --- merger conflict: merge fails → merge_conflict + retry trigger ---
+  echo "state-flow: merger conflict → merge_conflict + retry"
+  mg_conflict_root="$STATE_ROOT/mg-conflict"
+  mg_repo="$mg_conflict_root/repo"
+  mg_pr="$mg_conflict_root/pr"
+  mg_trigger="$mg_conflict_root/trigger"
+  mg_log="$mg_conflict_root/logs"
+  mkdir -p "$mg_repo" "$mg_pr" "$mg_trigger" "$mg_log"
+  git init -q --initial-branch=main "$mg_repo"
+  git -C "$mg_repo" config user.name "Test"
+  git -C "$mg_repo" config user.email "test@example.invalid"
+  echo "base" > "$mg_repo/README.md"
+  git -C "$mg_repo" add .
+  git -C "$mg_repo" commit -q -m "base"
+  mg_base="$(git -C "$mg_repo" rev-parse HEAD)"
+  # Create conflicting changes on main and the branch.
+  git -C "$mg_repo" checkout -q -b "dd/SPEC-009"
+  echo "branch version" > "$mg_repo/conflict.txt"
+  git -C "$mg_repo" add .
+  git -C "$mg_repo" commit -q -m "branch change"
+  git -C "$mg_repo" checkout -q main
+  echo "main version" > "$mg_repo/conflict.txt"
+  git -C "$mg_repo" add .
+  git -C "$mg_repo" commit -q -m "main change"
+  store_put "$mg_pr" "$(printf '{"id":"pr-SPEC-009","status":"merging","spec_id":"SPEC-009","spec_file":"/tmp/SPEC-009.md","branch":"dd/SPEC-009","base_commit":"%s"}' "$mg_base")"
+  mg_script="$mg_conflict_root/run.sh"
+  render_template "$ROOT/workflows/spec-gen/merger/templates/merger.md" "$mg_script" \
+    "workspace_repo=$mg_repo" \
+    "base_branch=main" \
+    "accept_cmd=true" \
+    "loop_store_cli=$LOOP_STORE_CLI" \
+    "trigger_store_dir=$mg_trigger" \
+    "pr_store_dir=$mg_pr" \
+    "merge_log_dir=$mg_log" \
+    "pr_id=pr-SPEC-009" \
+    "spec_id=SPEC-009" \
+    "spec_file=/tmp/SPEC-009.md" \
+    "branch=dd/SPEC-009" \
+    "base_commit=$mg_base"
+  bash "$mg_script" >/dev/null
+  mg_pr_rec="$(store_get "$mg_pr" pr-SPEC-009)"
+  mg_trigger_recs="$(store_by_status "$mg_trigger" open)"
+  if echo "$mg_pr_rec" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=JSON.parse(d);if(r.status!=="merge_conflict"){console.error("expected merge_conflict, got "+r.status);process.exit(1)}})'; then
+    echo "ok: merger marked PR as merge_conflict on conflict"
+  else
+    echo "FAIL: merger did not mark PR as merge_conflict: $mg_pr_rec" >&2
+    fail=1
+  fi
+  if [ "$(echo "$mg_trigger_recs" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const a=JSON.parse(d);console.log(a.length)})')" -eq 1 ]; then
+    echo "ok: merger enqueued a retry trigger on conflict"
+  else
+    echo "FAIL: merger did not enqueue exactly one retry trigger: $mg_trigger_recs" >&2
     fail=1
   fi
 fi

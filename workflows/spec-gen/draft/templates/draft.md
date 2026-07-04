@@ -14,9 +14,10 @@ Idea seed:
 - prior feedback file: {{feedback_file?}}
 
 Task:
-1. Read the reference library index to understand what has already been specified.
-2. Identify a genuinely new, worthwhile proposition that is not a re-skin of any existing spec.
-3. Write a concise technical spec at `{{workspace_repo}}/docs/specs/SPEC-<unique>.md`.
-4. Return the JSON envelope described in your persona.
+1. Read the workspace's `docs/specs/` directory. These are specs that have already been implemented and merged to main. Do NOT duplicate any of them.
+2. Read the reference library index to understand the broader spec landscape.
+3. Identify 3-5 genuinely new, non-overlapping, independently implementable features.
+4. Write each spec at `{{workspace_repo}}/docs/specs/SPEC-<unique>.md`.
+5. Return the JSON envelope with one enqueue effect per spec, as described in your persona.
 
-If prior feedback is not "(none)", read the feedback file and address every point.
+If prior feedback is not "(none)", read the feedback file and address every point. Each spec should be self-contained and can be implemented in parallel with others.

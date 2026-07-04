@@ -1,0 +1,21 @@
+limits: { max_nodes: 1, wall_clock: 7200, node_timeout: 7200, max_retries: 0, concurrency: 1 }
+harness:
+  sh: { runtime: bash, write: false }
+seed:
+  - identity: merger
+    mode: fresh
+    template: merger
+    harness: sh
+    payload:
+      workspace_repo: "{{workspace_repo}}"
+      base_branch: "{{base_branch}}"
+      accept_cmd: "{{accept_cmd}}"
+      loop_store_cli: "{{loop_store_cli}}"
+      trigger_store_dir: "{{trigger_store_dir}}"
+      pr_store_dir: "{{pr_store_dir}}"
+      merge_log_dir: "{{merge_log_dir}}"
+      pr_id: "{{pr_id}}"
+      spec_id: "{{spec_id}}"
+      spec_file: "{{spec_file}}"
+      branch: "{{branch}}"
+      base_commit: "{{base_commit}}"

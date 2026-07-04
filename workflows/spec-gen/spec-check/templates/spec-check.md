@@ -2,8 +2,6 @@ set -euo pipefail
 repo="{{workspace_repo}}"
 base_commit="{{base_commit}}"
 branch="{{branch}}"
-loop_store_cli="{{loop_store_cli}}"
-pr_store_dir="{{pr_store_dir}}"
 pr_id="$(cat <<'EOF'
 {{pr_id}}
 EOF
@@ -24,18 +22,19 @@ EOF
 # git show needs a repo-relative path, so strip the workspace_repo prefix.
 rel_spec_file="${spec_file#$repo/}"
 if git -C "$repo" show "$branch":"$rel_spec_file" >/dev/null 2>&1; then
-  node "$loop_store_cli" "$pr_store_dir" update "$pr_id" '{"status":"ready-to-deploy"}' checking >/dev/null
   RESULT="spec-check passed $pr_id" node -e '
 process.stdout.write(JSON.stringify({
   result: process.env.RESULT,
-  effects: [{ op: "halt" }],
+  effects: [
+    { op: "complete", status: "ready-to-deploy" },
+    { op: "halt" },
+  ],
 }));
 '
 else
   # Reject back to the Impl Loop trigger store so the worker retries.
   base_spec_id="${spec_id%%-r[0-9]*}"
   redo_spec_id="$base_spec_id-r$(date +%s)"
-  node "$loop_store_cli" "$pr_store_dir" update "$pr_id" '{"status":"rejected"}' checking >/dev/null
   REDO_SPEC_ID="$redo_spec_id" SPEC_FILE="$spec_file" RESULT="spec-check rejected $pr_id" node -e '
 process.stdout.write(JSON.stringify({
   result: process.env.RESULT,
@@ -46,6 +45,7 @@ process.stdout.write(JSON.stringify({
         spec_file: process.env.SPEC_FILE,
         feedback: "REJECT: the approved spec file is missing from the implementation branch. Ensure the spec file is committed to the branch and try again.",
     }},
+    { op: "complete", status: "rejected" },
     { op: "halt" },
   ],
 }));

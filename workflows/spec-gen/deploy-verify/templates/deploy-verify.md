@@ -1,7 +1,5 @@
 set -euo pipefail
 repo="{{workspace_repo}}"
-loop_store_cli="{{loop_store_cli}}"
-pr_store_dir="{{pr_store_dir}}"
 deploy_log_dir="{{deploy_log_dir}}"
 pr_id="$(cat <<'EOF'
 {{pr_id}}
@@ -41,15 +39,14 @@ else
 $(tail -n 60 "$accept_log")"
 fi
 
-node "$loop_store_cli" "$pr_store_dir" update "$pr_id" "{\"status\":\"$verify_status\"}" verifying >/dev/null
-
 if [ "$verify_status" != "ready-to-merge" ]; then
   base_spec_id="${spec_id%%-r[0-9]*}"
   redo_spec_id="$base_spec_id-r$(date +%s)"
-  REDO_SPEC_ID="$redo_spec_id" SPEC_FILE="$spec_file" FAILURE_REASON="$failure_reason" RESULT="deploy-verify $verify_status $pr_id" node -e '
+  REDO_SPEC_ID="$redo_spec_id" SPEC_FILE="$spec_file" FAILURE_REASON="$failure_reason" VERIFY_STATUS="$verify_status" RESULT="deploy-verify $verify_status $pr_id" node -e '
 process.stdout.write(JSON.stringify({
   result: process.env.RESULT,
   effects: [
+    { op: "complete", status: process.env.VERIFY_STATUS },
     { op: "enqueue", queue: "trigger", task: {
         id: process.env.REDO_SPEC_ID,
         status: "open",
@@ -61,10 +58,13 @@ process.stdout.write(JSON.stringify({
 }));
 '
 else
-  RESULT="deploy-verify $verify_status $pr_id" node -e '
+  VERIFY_STATUS="$verify_status" RESULT="deploy-verify $verify_status $pr_id" node -e '
 process.stdout.write(JSON.stringify({
   result: process.env.RESULT,
-  effects: [{ op: "halt" }],
+  effects: [
+    { op: "complete", status: process.env.VERIFY_STATUS },
+    { op: "halt" },
+  ],
 }));
 '
 fi

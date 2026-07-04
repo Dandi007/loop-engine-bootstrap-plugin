@@ -325,12 +325,13 @@ RENDER
     "pr_id=pr-SPEC-004" \
     "spec_id=SPEC-004" \
     "spec_file=$sc_repo/docs/specs/SPEC-004.md"
-  bash "$sc_script" >/dev/null
-  sc_pr_rec="$(store_get "$sc_pr" pr-SPEC-004)"
-  if echo "$sc_pr_rec" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=JSON.parse(d);if(r.status!=="ready-to-deploy"){console.error("expected ready-to-deploy, got "+r.status);process.exit(1)}})'; then
-    echo "ok: spec-check advanced PR to ready-to-deploy when spec is present"
+  sc_pass_out="$(bash "$sc_script")"
+  # SPEC-002: template emits complete ready-to-deploy; engine applies it via
+  # completeRecord. The template no longer advances the PR record directly.
+  if echo "$sc_pass_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects.find(x=>x.op==="complete");if(!a||a.status!=="ready-to-deploy"){console.error("expected complete ready-to-deploy, got "+(a&&a.status));process.exit(1)}})'; then
+    echo "ok: spec-check emitted complete ready-to-deploy when spec is present"
   else
-    echo "FAIL: spec-check did not advance PR to ready-to-deploy: $sc_pr_rec" >&2
+    echo "FAIL: spec-check did not emit complete ready-to-deploy: $sc_pass_out" >&2
     fail=1
   fi
 
@@ -365,12 +366,13 @@ RENDER
     "spec_id=SPEC-005" \
     "spec_file=$sc_repo/docs/specs/SPEC-005.md"
   sc_fail_out="$(bash "$sc_script")"
-  sc_pr_rec="$(store_get "$sc_pr" pr-SPEC-005)"
   sc_trigger_recs="$(store_by_status "$sc_trigger" open)"
-  if echo "$sc_pr_rec" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=JSON.parse(d);if(r.status!=="rejected"){console.error("expected rejected, got "+r.status);process.exit(1)}})'; then
-    echo "ok: spec-check rejected PR when spec is missing"
+  # SPEC-002: template emits complete rejected; engine applies it via
+  # completeRecord. The template no longer advances the PR record directly.
+  if echo "$sc_fail_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects.find(x=>x.op==="complete");if(!a||a.status!=="rejected"){console.error("expected complete rejected, got "+(a&&a.status));process.exit(1)}})'; then
+    echo "ok: spec-check emitted complete rejected when spec is missing"
   else
-    echo "FAIL: spec-check did not reject PR when spec is missing: $sc_pr_rec" >&2
+    echo "FAIL: spec-check did not emit complete rejected: $sc_fail_out" >&2
     fail=1
   fi
   if echo "$sc_fail_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects.find(x=>x.op==="enqueue"&&x.queue==="trigger");if(!a||a.task.status!=="open"||!a.task.feedback.includes("REJECT")){console.error("bad enqueue effect");process.exit(1)}})'; then
@@ -418,12 +420,13 @@ RENDER
     "spec_file=/tmp/SPEC-006.md" \
     "branch=dd/SPEC-006" \
     "base_commit=$(git -C "$dv_repo" rev-parse HEAD)"
-  bash "$dv_script" >/dev/null
-  dv_pr_rec="$(store_get "$dv_pr" pr-SPEC-006)"
-  if echo "$dv_pr_rec" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=JSON.parse(d);if(r.status!=="ready-to-merge"){console.error("expected ready-to-merge, got "+r.status);process.exit(1)}})'; then
-    echo "ok: deploy-verify advanced PR to ready-to-merge on success"
+  dv_pass_out="$(bash "$dv_script")"
+  # SPEC-002: template emits complete ready-to-merge; engine applies it via
+  # completeRecord. The template no longer advances the PR record directly.
+  if echo "$dv_pass_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects.find(x=>x.op==="complete");if(!a||a.status!=="ready-to-merge"){console.error("expected complete ready-to-merge, got "+(a&&a.status));process.exit(1)}})'; then
+    echo "ok: deploy-verify emitted complete ready-to-merge on success"
   else
-    echo "FAIL: deploy-verify did not advance PR to ready-to-merge: $dv_pr_rec" >&2
+    echo "FAIL: deploy-verify did not emit complete ready-to-merge: $dv_pass_out" >&2
     fail=1
   fi
 
@@ -460,12 +463,13 @@ RENDER
     "branch=dd/SPEC-007" \
     "base_commit=$(git -C "$dv_repo" rev-parse HEAD)"
   dv_fail_out="$(bash "$dv_script")"
-  dv_pr_rec="$(store_get "$dv_pr" pr-SPEC-007)"
   dv_trigger_recs="$(store_by_status "$dv_trigger" open)"
-  if echo "$dv_pr_rec" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=JSON.parse(d);if(r.status!=="verify_failed"){console.error("expected verify_failed, got "+r.status);process.exit(1)}})'; then
-    echo "ok: deploy-verify marked PR as verify_failed on failure"
+  # SPEC-002: template emits complete verify_failed; engine applies it via
+  # completeRecord. The template no longer advances the PR record directly.
+  if echo "$dv_fail_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects.find(x=>x.op==="complete");if(!a||a.status!=="verify_failed"){console.error("expected complete verify_failed, got "+(a&&a.status));process.exit(1)}})'; then
+    echo "ok: deploy-verify emitted complete verify_failed on failure"
   else
-    echo "FAIL: deploy-verify did not mark PR as verify_failed: $dv_pr_rec" >&2
+    echo "FAIL: deploy-verify did not emit complete verify_failed: $dv_fail_out" >&2
     fail=1
   fi
   if echo "$dv_fail_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects.find(x=>x.op==="enqueue"&&x.queue==="trigger");if(!a||a.task.status!=="open"||!a.task.feedback.includes("Deploy-verify acceptance FAILED")){console.error("bad enqueue effect");process.exit(1)}})'; then
@@ -516,12 +520,13 @@ RENDER
     "spec_file=/tmp/SPEC-008.md" \
     "branch=dd/SPEC-008" \
     "base_commit=$mg_base"
-  bash "$mg_script" >/dev/null
-  mg_pr_rec="$(store_get "$mg_pr" pr-SPEC-008)"
-  if echo "$mg_pr_rec" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=JSON.parse(d);if(r.status!=="merged"){console.error("expected merged, got "+r.status);process.exit(1)}})'; then
-    echo "ok: merger marked PR as merged on success"
+  mg_pass_out="$(bash "$mg_script")"
+  # SPEC-002: template emits complete merged; engine applies it via
+  # completeRecord. The template no longer advances the PR record directly.
+  if echo "$mg_pass_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects.find(x=>x.op==="complete");if(!a||a.status!=="merged"){console.error("expected complete merged, got "+(a&&a.status));process.exit(1)}})'; then
+    echo "ok: merger emitted complete merged on success"
   else
-    echo "FAIL: merger did not mark PR as merged: $mg_pr_rec" >&2
+    echo "FAIL: merger did not emit complete merged: $mg_pass_out" >&2
     fail=1
   fi
   # Verify the merge actually happened on main.
@@ -572,12 +577,13 @@ RENDER
     "branch=dd/SPEC-009" \
     "base_commit=$mg_base"
   mg_conflict_out="$(bash "$mg_script")"
-  mg_pr_rec="$(store_get "$mg_pr" pr-SPEC-009)"
   mg_trigger_recs="$(store_by_status "$mg_trigger" open)"
-  if echo "$mg_pr_rec" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const r=JSON.parse(d);if(r.status!=="merge_conflict"){console.error("expected merge_conflict, got "+r.status);process.exit(1)}})'; then
-    echo "ok: merger marked PR as merge_conflict on conflict"
+  # SPEC-002: template emits complete merge_conflict; engine applies it via
+  # completeRecord. The template no longer advances the PR record directly.
+  if echo "$mg_conflict_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects.find(x=>x.op==="complete");if(!a||a.status!=="merge_conflict"){console.error("expected complete merge_conflict, got "+(a&&a.status));process.exit(1)}})'; then
+    echo "ok: merger emitted complete merge_conflict on conflict"
   else
-    echo "FAIL: merger did not mark PR as merge_conflict: $mg_pr_rec" >&2
+    echo "FAIL: merger did not emit complete merge_conflict: $mg_conflict_out" >&2
     fail=1
   fi
   if echo "$mg_conflict_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects.find(x=>x.op==="enqueue"&&x.queue==="trigger");if(!a||a.task.status!=="open"||!a.task.feedback.includes("Merge phase FAILED")){console.error("bad enqueue effect");process.exit(1)}})'; then
@@ -603,12 +609,30 @@ else
   fail=1
 fi
 
+# --- complete-effect integration tests (SPEC-002-b0-plugin-complete-effect) ---
+echo "running complete-effect integration tests"
+if bash "$ROOT/tests/complete-effect.test.sh"; then
+  echo "ok: complete-effect tests passed"
+else
+  echo "FAIL: complete-effect tests failed" >&2
+  fail=1
+fi
+
 # --- grep assertion: no direct put calls remain in migrated templates ---
 put_count="$(grep -rn 'node.*loop_store_cli.*put\|"$loop_store_cli".*put' "$ROOT/workflows/spec-gen/rework/templates/spec-rework.md" "$ROOT/workflows/spec-gen/spec-check/templates/spec-check.md" "$ROOT/workflows/spec-gen/deploy-verify/templates/deploy-verify.md" "$ROOT/workflows/spec-gen/merger/templates/merger.md" 2>/dev/null | wc -l | tr -d ' ' || true)"
 if [ "$put_count" -eq 0 ]; then
   echo "ok: no direct put calls in migrated templates"
 else
   echo "FAIL: $put_count direct put call(s) remain in migrated templates" >&2
+  fail=1
+fi
+
+# --- grep assertion: no direct update calls remain in spec-check/deploy-verify/merger ---
+update_count="$(grep -rn 'node.*loop_store_cli.*update\|"$loop_store_cli".*update' "$ROOT/workflows/spec-gen/spec-check/templates/spec-check.md" "$ROOT/workflows/spec-gen/deploy-verify/templates/deploy-verify.md" "$ROOT/workflows/spec-gen/merger/templates/merger.md" 2>/dev/null | wc -l | tr -d ' ' || true)"
+if [ "$update_count" -eq 0 ]; then
+  echo "ok: no direct update calls in spec-check/deploy-verify/merger templates"
+else
+  echo "FAIL: $update_count direct update call(s) remain in spec-check/deploy-verify/merger templates" >&2
   fail=1
 fi
 

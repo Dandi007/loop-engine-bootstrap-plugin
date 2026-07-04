@@ -147,11 +147,12 @@ assert_json "TC-03 emits enqueue trigger effect" \
   "const a=e.effects.find(x=>x.op==='enqueue'&&x.queue==='trigger');if(!(a&&a.task.status==='open'&&a.task.feedback.includes('REJECT: the approved spec file is missing')))process.exit(1)" \
   "$tc3_out"
 [ "$(store_count_open "$tc3_trigger")" -eq 0 ] || { echo "FAIL: TC-03 trigger store written directly" >&2; fail=1; }
-# INV-3: update call retained — PR advanced to rejected.
-tc3_pr_rec="$(node "$LOOP_STORE_CLI" "$tc3_pr" get pr-SPEC-003)"
-assert_json "TC-03 PR marked rejected (update retained)" \
-  "if(e.status!=='rejected')process.exit(1)" \
-  "$tc3_pr_rec"
+# SPEC-002: the direct update call is replaced by a complete effect emitted in
+# the envelope; the engine applies the terminal status via completeRecord. The
+# template no longer advances the PR record directly.
+assert_json "TC-03 emits complete rejected effect" \
+  "const a=e.effects.find(x=>x.op==='complete');if(!(a&&a.status==='rejected'))process.exit(1)" \
+  "$tc3_out"
 
 # ---------------------------------------------------------------------------
 # TC-04: P-a4 — deploy-verify failure emits enqueue trigger, no direct put
@@ -267,8 +268,8 @@ render_template "$ROOT/workflows/spec-gen/deploy-verify/templates/deploy-verify.
   "branch=dd/SPEC-006" \
   "base_commit=$tc6_head"
 tc6_out="$(bash "$tc6_script")"
-assert_json "TC-06 effects only halt, no enqueue" \
-  "if(!(e.effects.length===1&&e.effects[0].op==='halt'))process.exit(1)" \
+assert_json "TC-06 emits complete ready-to-merge + halt, no enqueue" \
+  "if(!(e.effects.length===2&&e.effects[0].op==='complete'&&e.effects[0].status==='ready-to-merge'&&e.effects[1].op==='halt'))process.exit(1)" \
   "$tc6_out"
 [ "$(store_count_open "$tc6_trigger")" -eq 0 ] || { echo "FAIL: TC-06 trigger store written" >&2; fail=1; }
 
@@ -307,8 +308,8 @@ render_template "$ROOT/workflows/spec-gen/merger/templates/merger.md" "$tc7_scri
   "branch=dd/SPEC-007" \
   "base_commit=$tc7_base"
 tc7_out="$(bash "$tc7_script")"
-assert_json "TC-07 effects only halt, no enqueue" \
-  "if(!(e.effects.length===1&&e.effects[0].op==='halt'))process.exit(1)" \
+assert_json "TC-07 emits complete merged + halt, no enqueue" \
+  "if(!(e.effects.length===2&&e.effects[0].op==='complete'&&e.effects[0].status==='merged'&&e.effects[1].op==='halt'))process.exit(1)" \
   "$tc7_out"
 [ "$(store_count_open "$tc7_trigger")" -eq 0 ] || { echo "FAIL: TC-07 trigger store written" >&2; fail=1; }
 
@@ -326,15 +327,16 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# TC-09: INV-3 — spec-check FAIL retains update call (PR advanced to rejected)
+# TC-09: SPEC-002 — spec-check FAIL emits complete rejected (replaces update)
 # ---------------------------------------------------------------------------
-echo "TC-09: spec-check FAIL retained update (PR rejected) (INV-3)"
-# Already asserted in TC-03 via PR record status; re-state explicitly.
-tc3_pr_status="$(echo "$tc3_pr_rec" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>console.log(JSON.parse(d).status))')"
-if [ "$tc3_pr_status" = "rejected" ]; then
-  echo "ok: TC-09 spec-check update call retained"
+echo "TC-09: spec-check FAIL emits complete rejected (SPEC-002)"
+# Already asserted in TC-03 via the complete effect in the envelope; re-state
+# explicitly. The template no longer advances the PR record directly — the
+# engine applies the terminal status via completeRecord (ifStatus guard).
+if echo "$tc3_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);const a=e.effects.find(x=>x.op==="complete");if(!a||a.status!=="rejected"){console.error("expected complete rejected, got "+(a&&a.status));process.exit(1)}})'; then
+  echo "ok: TC-09 spec-check FAIL emits complete rejected"
 else
-  echo "FAIL: TC-09 PR status is '$tc3_pr_status', expected rejected" >&2
+  echo "FAIL: TC-09 spec-check FAIL did not emit complete rejected" >&2
   fail=1
 fi
 

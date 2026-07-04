@@ -144,9 +144,7 @@ pipelines:
     config_dir: ${PLUGIN_ROOT}/workflows/spec-gen/spec-check
     input:
       workspace_repo: ${WORKSPACE_REPO}
-      pr_store_dir: ${PR_STORE_DIR}
       trigger_store_dir: ${TRIGGER_STORE_DIR}
-      loop_store_cli: ${LOOP_STORE_CLI}
     claim:
       store_dir: ${PR_STORE_DIR}
       from: approved
@@ -169,8 +167,6 @@ pipelines:
       workspace_repo: ${WORKSPACE_REPO}
       accept_cmd: ${DD_ACCEPT_CMD}
       trigger_store_dir: ${TRIGGER_STORE_DIR}
-      pr_store_dir: ${PR_STORE_DIR}
-      loop_store_cli: ${LOOP_STORE_CLI}
       deploy_log_dir: ${RUN_ROOT}/logs
     claim:
       store_dir: ${PR_STORE_DIR}

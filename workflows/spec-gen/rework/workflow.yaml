@@ -1,13 +1,17 @@
 limits: { max_nodes: 1, wall_clock: 30, node_timeout: 10, max_retries: 0, concurrency: 1 }
 harness:
   sh: { runtime: bash, write: false }
+routes:
+  trigger:
+    store: "{{trigger_store_dir}}"
+  idea:
+    store: "{{idea_store_dir}}"
 seed:
   - identity: spec-reworker
     mode: fresh
     template: spec-rework
     harness: sh
     payload:
-      loop_store_cli: "{{loop_store_cli}}"
       idea_store_dir: "{{idea_store_dir}}"
       trigger_store_dir: "{{trigger_store_dir}}"
       spec_verdict_id: "{{spec_verdict_id}}"

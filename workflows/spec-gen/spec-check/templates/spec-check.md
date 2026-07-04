@@ -4,7 +4,6 @@ base_commit="{{base_commit}}"
 branch="{{branch}}"
 loop_store_cli="{{loop_store_cli}}"
 pr_store_dir="{{pr_store_dir}}"
-trigger_store_dir="{{trigger_store_dir}}"
 pr_id="$(cat <<'EOF'
 {{pr_id}}
 EOF
@@ -36,22 +35,19 @@ else
   # Reject back to the Impl Loop trigger store so the worker retries.
   base_spec_id="${spec_id%%-r[0-9]*}"
   redo_spec_id="$base_spec_id-r$(date +%s)"
-  redo_payload="$(
-    REDO_SPEC_ID="$redo_spec_id" SPEC_FILE="$spec_file" node -e '
-process.stdout.write(JSON.stringify({
-  id: process.env.REDO_SPEC_ID,
-  status: "open",
-  spec_file: process.env.SPEC_FILE,
-  feedback: "REJECT: the approved spec file is missing from the implementation branch. Ensure the spec file is committed to the branch and try again.",
-}));
-'
-  )"
-  node "$loop_store_cli" "$trigger_store_dir" put "$redo_payload" >/dev/null
   node "$loop_store_cli" "$pr_store_dir" update "$pr_id" '{"status":"rejected"}' checking >/dev/null
-  RESULT="spec-check rejected $pr_id" node -e '
+  REDO_SPEC_ID="$redo_spec_id" SPEC_FILE="$spec_file" RESULT="spec-check rejected $pr_id" node -e '
 process.stdout.write(JSON.stringify({
   result: process.env.RESULT,
-  effects: [{ op: "halt" }],
+  effects: [
+    { op: "enqueue", queue: "trigger", task: {
+        id: process.env.REDO_SPEC_ID,
+        status: "open",
+        spec_file: process.env.SPEC_FILE,
+        feedback: "REJECT: the approved spec file is missing from the implementation branch. Ensure the spec file is committed to the branch and try again.",
+    }},
+    { op: "halt" },
+  ],
 }));
 '
 fi

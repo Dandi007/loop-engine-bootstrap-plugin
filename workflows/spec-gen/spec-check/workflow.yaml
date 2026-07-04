@@ -1,6 +1,9 @@
 limits: { max_nodes: 1, wall_clock: 30, node_timeout: 10, max_retries: 0, concurrency: 1 }
 harness:
   sh: { runtime: bash, write: false }
+routes:
+  trigger:
+    store: "{{trigger_store_dir}}"
 seed:
   - identity: spec-checker
     mode: fresh

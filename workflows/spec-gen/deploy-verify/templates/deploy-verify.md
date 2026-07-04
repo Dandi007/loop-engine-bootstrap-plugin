@@ -1,7 +1,6 @@
 set -euo pipefail
 repo="{{workspace_repo}}"
 loop_store_cli="{{loop_store_cli}}"
-trigger_store_dir="{{trigger_store_dir}}"
 pr_store_dir="{{pr_store_dir}}"
 deploy_log_dir="{{deploy_log_dir}}"
 pr_id="$(cat <<'EOF'
@@ -47,22 +46,25 @@ node "$loop_store_cli" "$pr_store_dir" update "$pr_id" "{\"status\":\"$verify_st
 if [ "$verify_status" != "ready-to-merge" ]; then
   base_spec_id="${spec_id%%-r[0-9]*}"
   redo_spec_id="$base_spec_id-r$(date +%s)"
-  redo_payload="$(
-    REDO_SPEC_ID="$redo_spec_id" SPEC_FILE="$spec_file" FEEDBACK="$failure_reason" node -e '
+  REDO_SPEC_ID="$redo_spec_id" SPEC_FILE="$spec_file" FAILURE_REASON="$failure_reason" RESULT="deploy-verify $verify_status $pr_id" node -e '
 process.stdout.write(JSON.stringify({
-  id: process.env.REDO_SPEC_ID,
-  status: "open",
-  spec_file: process.env.SPEC_FILE,
-  feedback: `Deploy-verify acceptance FAILED on branch. Fix the cause:\n${process.env.FEEDBACK}`,
+  result: process.env.RESULT,
+  effects: [
+    { op: "enqueue", queue: "trigger", task: {
+        id: process.env.REDO_SPEC_ID,
+        status: "open",
+        spec_file: process.env.SPEC_FILE,
+        feedback: "Deploy-verify acceptance FAILED on branch. Fix the cause:\n" + process.env.FAILURE_REASON,
+    }},
+    { op: "halt" },
+  ],
 }));
 '
-  )"
-  node "$loop_store_cli" "$trigger_store_dir" put "$redo_payload" >/dev/null
-fi
-
-RESULT="deploy-verify $verify_status $pr_id" node -e '
+else
+  RESULT="deploy-verify $verify_status $pr_id" node -e '
 process.stdout.write(JSON.stringify({
   result: process.env.RESULT,
   effects: [{ op: "halt" }],
 }));
 '
+fi

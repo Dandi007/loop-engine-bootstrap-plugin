@@ -1,8 +1,6 @@
 set -euo pipefail
 repo="{{workspace_repo}}"
 base_branch="{{base_branch}}"
-loop_store_cli="{{loop_store_cli}}"
-pr_store_dir="{{pr_store_dir}}"
 merge_log_dir="{{merge_log_dir}}"
 pr_id="$(cat <<'EOF'
 {{pr_id}}
@@ -60,18 +58,16 @@ else
 $(tail -n 30 "$merge_log")"
 fi
 
-# Update PR record to final status.
-node "$loop_store_cli" "$pr_store_dir" update "$pr_id" "{\"status\":\"$merge_status\"}" merging >/dev/null
-
 # On failure (merge conflict or test failure), enqueue a retry trigger
 # so the impl loop can fix the issue and re-submit.
 if [ "$merge_status" != "merged" ]; then
   base_spec_id="${spec_id%%-r[0-9]*}"
   redo_spec_id="$base_spec_id-r$(date +%s)"
-  REDO_SPEC_ID="$redo_spec_id" SPEC_FILE="$spec_file" FAILURE_REASON="$failure_reason" RESULT="merge $merge_status $pr_id" node -e '
+  REDO_SPEC_ID="$redo_spec_id" SPEC_FILE="$spec_file" FAILURE_REASON="$failure_reason" MERGE_STATUS="$merge_status" RESULT="merge $merge_status $pr_id" node -e '
 process.stdout.write(JSON.stringify({
   result: process.env.RESULT,
   effects: [
+    { op: "complete", status: process.env.MERGE_STATUS },
     { op: "enqueue", queue: "trigger", task: {
         id: process.env.REDO_SPEC_ID,
         status: "open",
@@ -83,10 +79,13 @@ process.stdout.write(JSON.stringify({
 }));
 '
 else
-  RESULT="merge $merge_status $pr_id" node -e '
+  MERGE_STATUS="$merge_status" RESULT="merge $merge_status $pr_id" node -e '
 process.stdout.write(JSON.stringify({
   result: process.env.RESULT,
-  effects: [{ op: "halt" }],
+  effects: [
+    { op: "complete", status: process.env.MERGE_STATUS },
+    { op: "halt" },
+  ],
 }));
 '
 fi

@@ -8,8 +8,6 @@ pipelines:
       base_branch: ${WORKSPACE_BASE_BRANCH}
       accept_cmd: ${DD_ACCEPT_CMD}
       trigger_store_dir: ${TRIGGER_STORE_DIR}
-      pr_store_dir: ${PR_STORE_DIR}
-      loop_store_cli: ${LOOP_STORE_CLI}
       merge_log_dir: ${RUN_ROOT}/logs
     claim:
       store_dir: ${PR_STORE_DIR}

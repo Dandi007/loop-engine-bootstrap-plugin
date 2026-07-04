@@ -52,7 +52,6 @@ pipelines:
     input:
       idea_store_dir: ${IDEA_STORE_DIR}
       trigger_store_dir: ${TRIGGER_STORE_DIR}
-      loop_store_cli: ${LOOP_STORE_CLI}
     claim:
       store_dir: ${SPEC_VERDICT_STORE_DIR}
       from: decided

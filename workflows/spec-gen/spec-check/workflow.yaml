@@ -10,9 +10,7 @@ seed:
     harness: sh
     payload:
       workspace_repo: "{{workspace_repo}}"
-      pr_store_dir: "{{pr_store_dir}}"
       trigger_store_dir: "{{trigger_store_dir}}"
-      loop_store_cli: "{{loop_store_cli}}"
       pr_id: "{{pr_id}}"
       spec_id: "{{spec_id}}"
       spec_file: "{{spec_file}}"

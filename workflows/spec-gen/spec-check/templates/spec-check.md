@@ -21,7 +21,9 @@ EOF
 # INV-3 guard: the approved spec must exist on the implementation branch.
 # We check the branch tree directly (not the diff) because the spec file is
 # committed to main by the drafter before the work branch is created.
-if git -C "$repo" show "$branch":"$spec_file" >/dev/null 2>&1; then
+# git show needs a repo-relative path, so strip the workspace_repo prefix.
+rel_spec_file="${spec_file#$repo/}"
+if git -C "$repo" show "$branch":"$rel_spec_file" >/dev/null 2>&1; then
   node "$loop_store_cli" "$pr_store_dir" update "$pr_id" '{"status":"ready-to-deploy"}' checking >/dev/null
   RESULT="spec-check passed $pr_id" node -e '
 process.stdout.write(JSON.stringify({

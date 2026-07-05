@@ -12,9 +12,9 @@ harness:
 routes:
   spec-pr: "{{spec_pr_store_dir}}"
 io:
-  in: { queue: idea, contract: contracts/idea.schema.json }
+  in: { queue: idea, contract: idea.schema.json }
   out:
-    spec-pr: contracts/spec-pr.schema.json
+    spec-pr: spec-pr.schema.json
 seed:
   - identity: drafter
     mode: fresh

@@ -46,6 +46,18 @@ else
   echo "FAIL: TC-2 schema original count=$actual_count expected 5" >&2
   fail=1
 fi
+
+# TC-2b: io contract 值必须是裸文件名（engine resolve 语义 = config_dir/contracts/ + 值；
+# 带 "contracts/" 前缀会双拼 contracts/contracts/ → 装配期全线读不到——B3 首个契约生效
+# drain 实测事故 2026-07-05。锚死裸文件名形态。）
+bad_prefix_count="$( (grep -rn ': contracts/' "$ROOT"/workflows/spec-gen/*/workflow.yaml 2>/dev/null || true) | wc -l | tr -d ' ')"
+if [ "$bad_prefix_count" -eq 0 ]; then
+  echo "ok: TC-2b io contract 值全部为裸文件名(无 contracts/ 前缀)"
+else
+  echo "FAIL: TC-2b io contract 值含 contracts/ 前缀 ($bad_prefix_count 处):" >&2
+  grep -rn ': contracts/' "$ROOT"/workflows/spec-gen/*/workflow.yaml >&2
+  fail=1
+fi
 actual_names="$(find "$CONTRACTS_DIR" -maxdepth 1 -name '*.schema.json' -type f 2>/dev/null -exec basename {} .schema.json \; | sort | tr '\n' ' ' | sed 's/ *$//' || true)"
 expected_sorted="$(echo "$expected_names" | tr ' ' '\n' | sort | tr '\n' ' ' | sed 's/ *$//')"
 if [ "$actual_names" = "$expected_sorted" ]; then
@@ -211,8 +223,10 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# TC-8: io.out key set == routes key set, io.in non-empty, contract paths
-#       start with contracts/ (INV-7). Uses engine yaml package.
+# TC-8: io.out key set == routes key set, io.in non-empty, contract values are
+#       BARE filenames (engine resolve = config_dir/contracts/ + value; a
+#       contracts/ prefix double-joins → assembly-time read failure, B3 live
+#       incident 2026-07-05). Uses engine yaml package.
 # ---------------------------------------------------------------------------
 if ! ENGINE_ROOT="$ENGINE_ROOT" ROOT="$ROOT" node -e '
   const { createRequire } = require("node:module");
@@ -234,13 +248,13 @@ if ! ENGINE_ROOT="$ENGINE_ROOT" ROOT="$ROOT" node -e '
       console.error("FAIL: TC-8 " + d + " io.in.queue/contract empty");
       bad = 1;
     }
-    if (!wf.io.in.contract.startsWith("contracts/")) {
-      console.error("FAIL: TC-8 " + d + " io.in.contract does not start with contracts/: " + wf.io.in.contract);
+    if (wf.io.in.contract.includes("/")) {
+      console.error("FAIL: TC-8 " + d + " io.in.contract must be a bare filename (engine resolves config_dir/contracts/ + value): " + wf.io.in.contract);
       bad = 1;
     }
     for (const [q, c] of Object.entries(wf.io.out)) {
-      if (!String(c).startsWith("contracts/")) {
-        console.error("FAIL: TC-8 " + d + " io.out[" + q + "] contract does not start with contracts/: " + c);
+      if (String(c).includes("/")) {
+        console.error("FAIL: TC-8 " + d + " io.out[" + q + "] must be a bare filename: " + c);
         bad = 1;
       }
     }

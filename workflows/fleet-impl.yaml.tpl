@@ -119,6 +119,10 @@ pipelines:
   - label: rework
     config_dir: ${DD_PLUGIN_ROOT}/workflows/spec/rework
     input:
+      # B0 豁免（b0-inventory 定案）：dd-plugin spec/rework 是跨 store 直调豁免项，
+      # 未迁移 enqueue/complete，payload 仍需 {{loop_store_cli}}——缺它则占位符解析
+      # 失败，rework tick 在 start 后同步死亡（B1 Wave1 实证 2026-07-05）。
+      loop_store_cli: ${LOOP_STORE_CLI}
       trigger_store_dir: ${TRIGGER_STORE_DIR}
       pr_store_dir: ${PR_STORE_DIR}
     claim:

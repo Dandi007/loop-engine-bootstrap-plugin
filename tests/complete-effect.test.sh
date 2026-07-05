@@ -465,12 +465,16 @@ fi
 # spec-check/deploy-verify/merger input sections). This is the literal §5
 # acceptance grep.
 # ---------------------------------------------------------------------------
-echo "TC-12: §5 fleet templates fully purged of loop_store_cli (0 lines)"
+echo "TC-12: §5 fleet templates purged of loop_store_cli (rework 豁免恰 1 行)"
+# 豁免锚：dd-plugin spec/rework 未迁移（B0 显式豁免），fleet-impl 的 rework input
+# 必须保留恰 1 行 loop_store_cli 赋值；fleet-merge 仍须 0 行。
+impl_cli_count="$(grep -c '^      loop_store_cli: ${LOOP_STORE_CLI}$' \
+  "$ROOT/workflows/fleet-impl.yaml.tpl" 2>/dev/null || true)"
 fleet_loop_cli_count="$(grep -n 'loop_store_cli' \
   "$ROOT/workflows/fleet-impl.yaml.tpl" \
-  "$ROOT/workflows/fleet-merge.yaml.tpl" 2>/dev/null | grep -v '^Binary' | wc -l | tr -d ' ' || true)"
-if [ "$fleet_loop_cli_count" -eq 0 ]; then
-  echo "ok: TC-12 fleet-impl/fleet-merge contain 0 loop_store_cli lines"
+  "$ROOT/workflows/fleet-merge.yaml.tpl" 2>/dev/null | grep -v '^Binary' | grep -cv '# B0 豁免\|占位符解析\|失败，rework tick\|未迁移 enqueue' || true)"
+if [ "$impl_cli_count" -eq 1 ] && [ "$fleet_loop_cli_count" -eq 1 ]; then
+  echo "ok: TC-12 fleet-impl 恰 1 行 rework 豁免 loop_store_cli，fleet-merge 0 行"
 else
   echo "FAIL: TC-12 fleet templates still reference loop_store_cli ($fleet_loop_cli_count lines):" >&2
   grep -n 'loop_store_cli' "$ROOT/workflows/fleet-impl.yaml.tpl" "$ROOT/workflows/fleet-merge.yaml.tpl" 2>/dev/null >&2

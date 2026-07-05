@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "pr record",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["id", "status", "spec_id", "spec_file", "branch", "base_commit"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["ready", "reviewing", "approved", "checking", "ready-to-deploy", "verifying", "ready-to-merge", "merging", "merged", "rejected", "verify_failed", "merge_conflict", "contract_rejected"] },
+    "spec_id": { "type": "string", "minLength": 1 },
+    "spec_file": { "type": "string", "minLength": 1 },
+    "branch": { "type": "string", "minLength": 1 },
+    "base_commit": { "type": "string", "minLength": 1 },
+    "diff": { "type": "string" },
+    "diff_file": { "type": "string" },
+    "claimed_by": { "type": "string" }
+  }
+}

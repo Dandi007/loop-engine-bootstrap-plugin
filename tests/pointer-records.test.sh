@@ -202,7 +202,7 @@ grep -q 'process.env.SPEC_PATH' "$rework" || { echo "FAIL: TC-5 spec-rework.md m
 helper_count="$(grep -rl 'B3 pointer triplet resolution (SPEC-005)' \
   "$ROOT/workflows/spec-gen/spec-check/templates/spec-check.md" \
   "$ROOT/workflows/spec-gen/deploy-verify/templates/deploy-verify.md" \
-  "$ROOT/workflows/spec-gen/merger/templates/merger.md" 2>/dev/null | wc -l | tr -d ' ')"
+  "$ROOT/workflows/spec-gen/merger/templates/merger.md" 2>/dev/null | wc -l | tr -d ' ' || true)"
 [ "$helper_count" -eq 3 ] || { echo "FAIL: TC-5 helper sentinel count=$helper_count expected 3" >&2; tc5_fail=1; }
 
 for tpl in \
@@ -223,7 +223,7 @@ fi
 # ---------------------------------------------------------------------------
 # TC-6: seed payload 通道 (恰 5 文件; review 必填, 其余可选)
 # ---------------------------------------------------------------------------
-tc6_files="$(grep -lE '^[[:space:]]+spec_path: "\{\{spec_path\??\}\}"$' "$ROOT"/workflows/spec-gen/*/workflow.yaml 2>/dev/null | wc -l | tr -d ' ')"
+tc6_files="$(grep -lE '^[[:space:]]+spec_path: "\{\{spec_path\??\}\}"$' "$ROOT"/workflows/spec-gen/*/workflow.yaml 2>/dev/null | wc -l | tr -d ' ' || true)"
 [ "$tc6_files" -eq 5 ] || { echo "FAIL: TC-6 spec_path payload file count=$tc6_files expected 5" >&2; fail=1; }
 # review 必填形态
 grep -qE '^[[:space:]]+spec_path: "\{\{spec_path\}\}"$' "$ROOT/workflows/spec-gen/review/workflow.yaml" \

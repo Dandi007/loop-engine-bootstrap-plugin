@@ -23,11 +23,23 @@ feedback_file="$(cat <<'EOF'
 {{feedback_file?}}
 EOF
 )"
+repo="$(cat <<'EOF'
+{{repo?}}
+EOF
+)"
+commit="$(cat <<'EOF'
+{{commit?}}
+EOF
+)"
+spec_path="$(cat <<'EOF'
+{{spec_path?}}
+EOF
+)"
 
 if [ "$verdict" = "APPROVE" ]; then
   # Hand off to the Impl Loop trigger store — the single native store route seam.
   # Emit an enqueue effect; the engine applies it via the workflow's routes table.
-  SPEC_ID="$spec_id" SPEC_FILE="$spec_file" node -e '
+  SPEC_ID="$spec_id" SPEC_FILE="$spec_file" REPO="$repo" COMMIT="$commit" SPEC_PATH="$spec_path" node -e '
 process.stdout.write(JSON.stringify({
   result: "spec-rework APPROVE: enqueued trigger for " + process.env.SPEC_ID,
   effects: [
@@ -36,6 +48,9 @@ process.stdout.write(JSON.stringify({
         status: "open",
         spec_file: process.env.SPEC_FILE,
         feedback: "(none)",
+        repo: process.env.REPO,
+        commit: process.env.COMMIT,
+        spec_path: process.env.SPEC_PATH,
     }},
     { op: "halt" },
   ],
@@ -46,7 +61,7 @@ elif [ "$verdict" = "REJECT" ]; then
   # Send the idea back to the idea store for a fresh draft attempt.
   base_idea_id="${spec_id%%-r[0-9]*}"
   rework_idea_id="$base_idea_id-r$(date +%s)"
-  IDEA_ID="$rework_idea_id" SPEC_FILE="$spec_file" FEEDBACK_FILE="$feedback_file" FEEDBACK="$feedback" node -e '
+  IDEA_ID="$rework_idea_id" SPEC_FILE="$spec_file" FEEDBACK_FILE="$feedback_file" FEEDBACK="$feedback" REPO="$repo" COMMIT="$commit" SPEC_PATH="$spec_path" node -e '
 process.stdout.write(JSON.stringify({
   result: "spec-rework REJECT: enqueued idea " + process.env.IDEA_ID,
   effects: [
@@ -56,6 +71,9 @@ process.stdout.write(JSON.stringify({
         spec_file: process.env.SPEC_FILE,
         feedback_file: process.env.FEEDBACK_FILE,
         feedback: "Spec review REJECT on a previous attempt. Read the full review and address every point. Summary: " + process.env.FEEDBACK,
+        repo: process.env.REPO,
+        commit: process.env.COMMIT,
+        spec_path: process.env.SPEC_PATH,
     }},
     { op: "halt" },
   ],

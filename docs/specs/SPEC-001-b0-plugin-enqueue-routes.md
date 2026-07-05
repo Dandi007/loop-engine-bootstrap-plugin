@@ -35,10 +35,8 @@ plugin spec-gen 工作流中有 5 处直接调用 `node "$loop_store_cli" "$stor
 
 ```yaml
 routes:
-  trigger:
-    store: "{{trigger_store_dir}}"
-  idea:
-    store: "{{idea_store_dir}}"
+  trigger: "{{trigger_store_dir}}"
+  idea: "{{idea_store_dir}}"
 ```
 
 **移除** `seed[0].payload` 中的 `loop_store_cli: "{{loop_store_cli}}"` 行。  
@@ -116,8 +114,7 @@ exit 0
 
 ```yaml
 routes:
-  trigger:
-    store: "{{trigger_store_dir}}"
+  trigger: "{{trigger_store_dir}}"
 ```
 
 （`loop_store_cli` 保留在 payload 直至 Spec 2 合入，见 INV-3。）
@@ -165,8 +162,7 @@ process.stdout.write(JSON.stringify({
 
 ```yaml
 routes:
-  trigger:
-    store: "{{trigger_store_dir}}"
+  trigger: "{{trigger_store_dir}}"
 ```
 
 （`loop_store_cli` 保留在 payload。）
@@ -215,8 +211,7 @@ fi
 
 ```yaml
 routes:
-  trigger:
-    store: "{{trigger_store_dir}}"
+  trigger: "{{trigger_store_dir}}"
 ```
 
 （`loop_store_cli` 保留在 payload。）

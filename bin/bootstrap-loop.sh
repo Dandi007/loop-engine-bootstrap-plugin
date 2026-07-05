@@ -7,6 +7,7 @@ RUN_ROOT="${BOOT_RUN_ROOT:-$HOME/.loop-engine/bootstrap/$RUN_ID}"
 
 LOOP_ENGINE_CLI="${LOOP_ENGINE_CLI:-/data/code/self/loop-engine/dist/cli.js}"
 LOOP_STORE_CLI="${LOOP_STORE_CLI:-/data/code/self/loop-engine/dist/lib/store-cli.js}"
+LOOP_EVENTS_CLI="${LOOP_EVENTS_CLI:-$(dirname "$LOOP_ENGINE_CLI")/lib/loop-events-cli.js}"
 DD_PLUGIN_ROOT="${DD_PLUGIN_ROOT:-/data/code/self/loop-engine-dev-dispatch-plugin}"
 
 require_file() {
@@ -106,9 +107,19 @@ echo "[bootstrap-loop] run_root=$RUN_ROOT target=$BOOT_TARGET_REPO"
 impl_result=$(node "$LOOP_ENGINE_CLI" drain "$FLEET_IMPL" "$RUN_ROOT/runs/impl" 2>&1) || true
 echo "$impl_result"
 
+# loop 层事件正门（design §3.1）：Phase 1 结束 → 进入 merge。
+# 写入刚结束阶段（impl）的 runs root；观测旁路，失败容忍（|| true），不中断主流程。
+node "$LOOP_EVENTS_CLI" append --runs-root "$RUN_ROOT/runs/impl" \
+  --kind phase_change --label bootstrap --detail '{"from":"impl","to":"merge"}' || true
+
 # === PHASE 2: Sequential merge ===
 echo "[bootstrap-loop] Phase 2: sequential merge"
 merge_result=$(node "$LOOP_ENGINE_CLI" drain "$FLEET_MERGE" "$RUN_ROOT/runs/merge" 2>&1) || true
 echo "$merge_result"
+
+# loop 层事件正门（design §3.1）：Phase 2 结束 → done。
+# 写入刚结束阶段（merge）的 runs root；观测旁路，失败容忍（|| true），不中断主流程。
+node "$LOOP_EVENTS_CLI" append --runs-root "$RUN_ROOT/runs/merge" \
+  --kind phase_change --label bootstrap --detail '{"from":"merge","to":"done"}' || true
 
 echo "[bootstrap-loop] batch complete"

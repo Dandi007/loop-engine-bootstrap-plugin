@@ -3,12 +3,21 @@
   "title": "spec-pr record",
   "type": "object",
   "additionalProperties": true,
-  "required": ["id", "status", "spec_id", "spec_file"],
+  "required": ["id", "status", "spec_id", "spec_file", "repo", "commit", "spec_path"],
   "properties": {
     "id": { "type": "string", "minLength": 1 },
     "status": { "enum": ["ready", "reviewing", "contract_rejected"] },
     "spec_id": { "type": "string", "minLength": 1 },
-    "spec_file": { "type": "string", "minLength": 1 },
-    "claimed_by": { "type": "string" }
+    "spec_file": { "type": "string", "minLength": 1,
+      "description": "派生物化字段：指针 (repo,commit,spec_path) 是 SSoT（B3）；本字段为 dd-plugin 豁免区消费保留的物化缓存路径，B4 收编候选" },
+    "claimed_by": { "type": "string" },
+    "repo":      { "type": "string", "minLength": 1,
+                   "description": "spec 所在 git repo：本地绝对路径或 URL" },
+    "commit":    { "type": "string", "pattern": "^[0-9a-f]{7,40}$",
+                   "description": "spec 内容锚定 commit（禁分支名，只认 hex hash）" },
+    "spec_path": { "type": "string", "minLength": 1,
+                   "description": "spec 文件的 repo 相对路径" },
+    "mr":        { "type": "object",
+                   "description": "可选 MR/PR 元数据，宽形状" }
   }
 }

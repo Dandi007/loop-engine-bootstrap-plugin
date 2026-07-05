@@ -21,6 +21,9 @@ The JSON envelope must look exactly like this:
         "spec_pr_id": "{{spec_pr_id}}",
         "spec_id": "{{spec_id}}",
         "spec_file": "{{spec_file}}",
+        "repo": "{{repo}}",
+        "commit": "{{commit}}",
+        "spec_path": "{{spec_path}}",
         "verdict": "REJECT or APPROVE",
         "feedback": "one-line summary; full details live nowhere else",
         "feedback_file": ""

@@ -315,10 +315,12 @@ assert_json "TC-07 emits complete merged + halt, no enqueue" \
 
 # ---------------------------------------------------------------------------
 # TC-08: INV-2 — P-a1 task fields exactly match old put payload field set
+#         (B3 SPEC-005: trigger task now also carries pointer triplet
+#          repo/commit/spec_path — echoed from the spec-verdict record.)
 # ---------------------------------------------------------------------------
-echo "TC-08: P-a1 task field set == {id,status,spec_file,feedback} (INV-2)"
+echo "TC-08: P-a1 task field set == {id,status,spec_file,feedback,repo,commit,spec_path} (INV-2 + B3)"
 tc1_task_keys="$(echo "$tc1_out" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{const e=JSON.parse(d);console.log(Object.keys(e.effects[0].task).sort().join(","))})')"
-expected_keys="feedback,id,spec_file,status"
+expected_keys="commit,feedback,id,repo,spec_file,spec_path,status"
 if [ "$tc1_task_keys" = "$expected_keys" ]; then
   echo "ok: TC-08 task field set matches"
 else

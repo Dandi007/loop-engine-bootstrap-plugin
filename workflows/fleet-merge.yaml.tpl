@@ -20,6 +20,9 @@ pipelines:
         spec_file: spec_file
         branch: branch
         base_commit: base_commit
+        repo: repo
+        commit: commit
+        spec_path: spec_path
     pending:
       store_dir: ${PR_STORE_DIR}
       status: ready-to-merge

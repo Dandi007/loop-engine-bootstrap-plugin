@@ -43,6 +43,9 @@ pipelines:
         spec_pr_id: id
         spec_id: spec_id
         spec_file: spec_file
+        repo: repo
+        commit: commit
+        spec_path: spec_path
     pending:
       store_dir: ${SPEC_PR_STORE_DIR}
       status: ready
@@ -64,6 +67,9 @@ pipelines:
         verdict: verdict
         feedback: feedback
         feedback_file: feedback_file
+        repo: repo
+        commit: commit
+        spec_path: spec_path
     pending:
       store_dir: ${SPEC_VERDICT_STORE_DIR}
       status: decided
@@ -88,6 +94,9 @@ pipelines:
         spec_file: spec_file
         feedback: feedback
         feedback_file: feedback_file
+        repo: repo
+        commit: commit
+        spec_path: spec_path
     pending:
       store_dir: ${TRIGGER_STORE_DIR}
       status: open
@@ -112,6 +121,9 @@ pipelines:
         base_commit: base_commit
         diff: diff
         diff_file: diff_file
+        repo: repo
+        commit: commit
+        spec_path: spec_path
     pending:
       store_dir: ${PR_STORE_DIR}
       status: ready
@@ -138,6 +150,9 @@ pipelines:
         verdict: verdict
         feedback: feedback
         feedback_file: feedback_file
+        repo: repo
+        commit: commit
+        spec_path: spec_path
     pending:
       store_dir: ${VERDICT_STORE_DIR}
       status: decided
@@ -159,6 +174,9 @@ pipelines:
         spec_file: spec_file
         branch: branch
         base_commit: base_commit
+        repo: repo
+        commit: commit
+        spec_path: spec_path
     pending:
       store_dir: ${PR_STORE_DIR}
       status: approved
@@ -182,6 +200,9 @@ pipelines:
         spec_file: spec_file
         branch: branch
         base_commit: base_commit
+        repo: repo
+        commit: commit
+        spec_path: spec_path
     pending:
       store_dir: ${PR_STORE_DIR}
       status: ready-to-deploy

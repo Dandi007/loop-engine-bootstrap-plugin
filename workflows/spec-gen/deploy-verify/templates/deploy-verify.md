@@ -1,5 +1,6 @@
 set -euo pipefail
 repo="{{workspace_repo}}"
+trigger_store_dir="{{trigger_store_dir}}"
 deploy_log_dir="{{deploy_log_dir}}"
 pr_id="$(cat <<'EOF'
 {{pr_id}}
@@ -22,6 +23,29 @@ accept_cmd="$(cat <<'EOF'
 EOF
 )"
 
+# --- B3 pointer triplet resolution (SPEC-005): bind 继承优先，origin trigger 兜底 ---
+repo_v="$(cat <<'EOF'
+{{repo?}}
+EOF
+)"
+commit_v="$(cat <<'EOF'
+{{commit?}}
+EOF
+)"
+spec_path_v="$(cat <<'EOF'
+{{spec_path?}}
+EOF
+)"
+if [ -z "$commit_v" ]; then
+  base_spec_id="${spec_id%%-r[0-9]*}"
+  origin_rec="$trigger_store_dir/$base_spec_id.json"
+  if [ -f "$origin_rec" ]; then
+    repo_v="$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).repo??""' "$origin_rec")"
+    commit_v="$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).commit??""' "$origin_rec")"
+    spec_path_v="$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).spec_path??""' "$origin_rec")"
+  fi
+fi
+
 mkdir -p "$deploy_log_dir"
 accept_log="$deploy_log_dir/$pr_id-accept.log"
 
@@ -42,7 +66,7 @@ fi
 if [ "$verify_status" != "ready-to-merge" ]; then
   base_spec_id="${spec_id%%-r[0-9]*}"
   redo_spec_id="$base_spec_id-r$(date +%s)"
-  REDO_SPEC_ID="$redo_spec_id" SPEC_FILE="$spec_file" FAILURE_REASON="$failure_reason" VERIFY_STATUS="$verify_status" RESULT="deploy-verify $verify_status $pr_id" node -e '
+  REDO_SPEC_ID="$redo_spec_id" SPEC_FILE="$spec_file" REPO_V="$repo_v" COMMIT_V="$commit_v" SPEC_PATH_V="$spec_path_v" FAILURE_REASON="$failure_reason" VERIFY_STATUS="$verify_status" RESULT="deploy-verify $verify_status $pr_id" node -e '
 process.stdout.write(JSON.stringify({
   result: process.env.RESULT,
   effects: [
@@ -52,6 +76,9 @@ process.stdout.write(JSON.stringify({
         status: "open",
         spec_file: process.env.SPEC_FILE,
         feedback: "Deploy-verify acceptance FAILED on branch. Fix the cause:\n" + process.env.FAILURE_REASON,
+        repo: process.env.REPO_V,
+        commit: process.env.COMMIT_V,
+        spec_path: process.env.SPEC_PATH_V,
     }},
     { op: "halt" },
   ],

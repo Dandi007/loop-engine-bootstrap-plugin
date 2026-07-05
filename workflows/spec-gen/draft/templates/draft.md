@@ -58,6 +58,21 @@ Commit all changes:
 git -C {{workspace_repo}} add docs/ROADMAP.md docs/specs/ && git -C {{workspace_repo}} commit -m "chore: batch draft — add specs and update roadmap"
 ```
 
+## Step 3.5: Capture Spec Commit (pointer anchor, SPEC-005)
+
+After the final commit, capture the **spec commit hash** — the immutable content
+anchor for the spec triplet (repo, commit, spec_path). This MUST be a real hex
+hash obtained from `git rev-parse HEAD`, never a placeholder string (对齐
+dd work.md:38 的 base_commit 措辞：真实 hash，禁占位串).
+
+```
+git -C {{workspace_repo}} rev-parse HEAD
+```
+
+Record this hash; you will embed it as the `commit` field in every spec-pr
+envelope task below. If rev-parse does not return a 7-40 char hex hash, you
+have FAILED — re-run the commit and recapture.
+
 ## Step 4: Verification
 
 Before returning, verify:
@@ -80,7 +95,10 @@ Return one enqueue effect per spec:
         "id": "spec-pr-SPEC-XXX",
         "status": "ready",
         "spec_id": "SPEC-XXX",
-        "spec_file": "/absolute/path/to/{{workspace_repo}}/docs/specs/SPEC-XXX.md"
+        "spec_file": "/absolute/path/to/{{workspace_repo}}/docs/specs/SPEC-XXX.md",
+        "repo": "{{workspace_repo}}",
+        "commit": "<Step 3.5 的真实 rev-parse HEAD hex hash>",
+        "spec_path": "docs/specs/SPEC-XXX.md"
       }
     }
   ]

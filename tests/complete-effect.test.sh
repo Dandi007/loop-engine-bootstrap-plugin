@@ -85,6 +85,7 @@ mkdir -p "$tc1_repo/docs/specs"
 echo "spec" > "$tc1_repo/docs/specs/SPEC-001.md"
 git -C "$tc1_repo" add .
 git -C "$tc1_repo" commit -q -m "impl"
+tc1_spec_commit="$(git -C "$tc1_repo" rev-parse HEAD)"
 tc1_pr_count_before="$(store_count_all "$tc1_pr")"
 tc1_script="$tc1/run.sh"
 render_template "$ROOT/workflows/spec-gen/spec-check/templates/spec-check.md" "$tc1_script" \
@@ -96,7 +97,10 @@ render_template "$ROOT/workflows/spec-gen/spec-check/templates/spec-check.md" "$
   "trigger_store_dir=$tc1_trigger" \
   "pr_id=pr-SPEC-001" \
   "spec_id=SPEC-001" \
-  "spec_file=$tc1_repo/docs/specs/SPEC-001.md"
+  "spec_file=$tc1_repo/docs/specs/SPEC-001.md" \
+  "repo=$tc1_repo" \
+  "commit=$tc1_spec_commit" \
+  "spec_path=docs/specs/SPEC-001.md"
 tc1_out="$(bash "$tc1_script")"
 assert_json "TC-01 emits complete ready-to-deploy" \
   "const a=e.effects.find(x=>x.op==='complete');if(!(a&&a.status==='ready-to-deploy'))process.exit(1)" \

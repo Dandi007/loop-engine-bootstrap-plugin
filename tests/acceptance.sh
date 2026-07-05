@@ -37,6 +37,8 @@ check "workflows/spec-gen/contracts/spec-pr.schema.json"
 check "workflows/spec-gen/contracts/trigger.schema.json"
 check "workflows/spec-gen/contracts/verdict.schema.json"
 check "tests/pointer-records.test.sh"
+check "tests/pointer-consumption.test.sh"
+check "bin/spec-inject.sh"
 
 ENGINE_ROOT="${LOOP_ENGINE_ROOT:-/data/code/self/loop-engine}"
 ENGINE_DIST_FLEET="$ENGINE_ROOT/dist/fleet.js"
@@ -161,10 +163,10 @@ NODE
   RENDERED_FLEET_IMPL="$RENDERED_FLEET_IMPL" node "$impl_check_js" || fail=1
   rm -f "$impl_check_js"
 
-  # INV-1: bin/ contains bootstrap-loop.sh and bootstrap-continuous.sh.
+  # INV-1: bin/ contains bootstrap-loop.sh, bootstrap-continuous.sh, and spec-inject.sh (SPEC-006).
   bin_scripts=($(find "$ROOT/bin" -maxdepth 1 -type f ! -name '.gitkeep' | sort))
-  if [ "${#bin_scripts[@]}" -eq 2 ] && [ "$(basename "${bin_scripts[0]}")" = "bootstrap-continuous.sh" ] && [ "$(basename "${bin_scripts[1]}")" = "bootstrap-loop.sh" ]; then
-    echo "ok: bin/ has bootstrap-continuous.sh + bootstrap-loop.sh"
+  if [ "${#bin_scripts[@]}" -eq 3 ] && [ "$(basename "${bin_scripts[0]}")" = "bootstrap-continuous.sh" ] && [ "$(basename "${bin_scripts[1]}")" = "bootstrap-loop.sh" ] && [ "$(basename "${bin_scripts[2]}")" = "spec-inject.sh" ]; then
+    echo "ok: bin/ has bootstrap-continuous.sh + bootstrap-loop.sh + spec-inject.sh"
   else
     echo "FAIL: bin/ contains unexpected scripts: ${bin_scripts[*]}" >&2
     fail=1
@@ -319,6 +321,7 @@ RENDER
   echo "spec" > "$sc_repo/docs/specs/SPEC-004.md"
   git -C "$sc_repo" add .
   git -C "$sc_repo" commit -q -m "impl"
+  sc_spec_commit="$(git -C "$sc_repo" rev-parse HEAD)"
   store_put "$sc_pr" "$(printf '{"id":"pr-SPEC-004","status":"checking","spec_id":"SPEC-004","spec_file":"%s/docs/specs/SPEC-004.md","branch":"dd/SPEC-004","base_commit":"%s"}' "$sc_repo" "$sc_base")"
   sc_script="$sc_pass_root/run.sh"
   render_template "$ROOT/workflows/spec-gen/spec-check/templates/spec-check.md" "$sc_script" \
@@ -330,7 +333,10 @@ RENDER
     "trigger_store_dir=$sc_trigger" \
     "pr_id=pr-SPEC-004" \
     "spec_id=SPEC-004" \
-    "spec_file=$sc_repo/docs/specs/SPEC-004.md"
+    "spec_file=$sc_repo/docs/specs/SPEC-004.md" \
+    "repo=$sc_repo" \
+    "commit=$sc_spec_commit" \
+    "spec_path=docs/specs/SPEC-004.md"
   sc_pass_out="$(bash "$sc_script")"
   # SPEC-002: template emits complete ready-to-deploy; engine applies it via
   # completeRecord. The template no longer advances the PR record directly.
@@ -639,6 +645,15 @@ if bash "$ROOT/tests/pointer-records.test.sh"; then
   echo "ok: pointer-records tests passed"
 else
   echo "FAIL: pointer-records tests failed" >&2
+  fail=1
+fi
+
+# --- pointer-consumption tests (SPEC-006-b3-pointer-consumption-inject-tool) ---
+echo "running pointer-consumption tests"
+if bash "$ROOT/tests/pointer-consumption.test.sh"; then
+  echo "ok: pointer-consumption tests passed"
+else
+  echo "FAIL: pointer-consumption tests failed" >&2
   fail=1
 fi
 

@@ -144,7 +144,7 @@ render_template "$ROOT/workflows/spec-gen/spec-check/templates/spec-check.md" "$
   "spec_file=$tc3_repo/docs/specs/SPEC-003.md"
 tc3_out="$(bash "$tc3_script")"
 assert_json "TC-03 emits enqueue trigger effect" \
-  "const a=e.effects.find(x=>x.op==='enqueue'&&x.queue==='trigger');if(!(a&&a.task.status==='open'&&a.task.feedback.includes('REJECT: the approved spec file is missing')))process.exit(1)" \
+  "const a=e.effects.find(x=>x.op==='enqueue'&&x.queue==='trigger');if(!(a&&a.task.status==='open'&&a.task.feedback.includes('REJECT: spec pointer unresolvable')))process.exit(1)" \
   "$tc3_out"
 [ "$(store_count_open "$tc3_trigger")" -eq 0 ] || { echo "FAIL: TC-03 trigger store written directly" >&2; fail=1; }
 # SPEC-002: the direct update call is replaced by a complete effect emitted in

@@ -618,6 +618,15 @@ else
   fail=1
 fi
 
+# --- loop-events wiring tests (SPEC-004-b1-loop-events-wiring) ---
+echo "running loop-events wiring tests"
+if bash "$ROOT/tests/loop-events-wiring.test.sh"; then
+  echo "ok: loop-events wiring tests passed"
+else
+  echo "FAIL: loop-events wiring tests failed" >&2
+  fail=1
+fi
+
 # --- grep assertion: no direct put calls remain in migrated templates ---
 put_count="$(grep -rn 'node.*loop_store_cli.*put\|"$loop_store_cli".*put' "$ROOT/workflows/spec-gen/rework/templates/spec-rework.md" "$ROOT/workflows/spec-gen/spec-check/templates/spec-check.md" "$ROOT/workflows/spec-gen/deploy-verify/templates/deploy-verify.md" "$ROOT/workflows/spec-gen/merger/templates/merger.md" 2>/dev/null | wc -l | tr -d ' ' || true)"
 if [ "$put_count" -eq 0 ]; then

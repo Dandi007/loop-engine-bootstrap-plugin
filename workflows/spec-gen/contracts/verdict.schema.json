@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "verdict record (spec-verdict & dd verdict share this shape)",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["id", "status", "spec_id", "verdict", "feedback"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["decided", "reworked", "contract_rejected"] },
+    "spec_id": { "type": "string", "minLength": 1 },
+    "verdict": { "enum": ["APPROVE", "REJECT"] },
+    "feedback": { "type": "string" },
+    "spec_file": { "type": "string" },
+    "feedback_file": { "type": "string" },
+    "pr_id": { "type": "string" },
+    "spec_pr_id": { "type": "string" },
+    "claimed_by": { "type": "string" }
+  }
+}

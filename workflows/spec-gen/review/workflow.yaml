@@ -11,6 +11,10 @@ harness:
       CLAUDE_CONFIG_DIR: "{{claude_config_dir}}"
 routes:
   verdict: "{{spec_verdict_store_dir}}"
+io:
+  in: { queue: spec-pr, contract: contracts/spec-pr.schema.json }
+  out:
+    verdict: contracts/verdict.schema.json
 seed:
   - identity: spec-reviewer
     mode: fresh

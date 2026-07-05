@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "spec-pr record",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["id", "status", "spec_id", "spec_file"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["ready", "reviewing", "contract_rejected"] },
+    "spec_id": { "type": "string", "minLength": 1 },
+    "spec_file": { "type": "string", "minLength": 1 },
+    "claimed_by": { "type": "string" }
+  }
+}

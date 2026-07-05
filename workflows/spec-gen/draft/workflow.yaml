@@ -11,6 +11,10 @@ harness:
       CLAUDE_CONFIG_DIR: "{{claude_config_dir}}"
 routes:
   spec-pr: "{{spec_pr_store_dir}}"
+io:
+  in: { queue: idea, contract: contracts/idea.schema.json }
+  out:
+    spec-pr: contracts/spec-pr.schema.json
 seed:
   - identity: drafter
     mode: fresh

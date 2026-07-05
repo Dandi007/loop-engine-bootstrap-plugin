@@ -11,7 +11,8 @@
     "verdict": { "enum": ["APPROVE", "REJECT"] },
     "feedback": { "type": "string" },
     "spec_file": { "type": "string" },
-    "feedback_file": { "type": "string" },
+    "feedback_file": { "type": "string",
+      "description": "reviewer 详细反馈的物化文件路径。约定通道：workspace 内 .dd-review/（dd review.md:19-23 指令产生，为绕 CLI 长 result 截断而生），经本字段注入下游引用——PROP-2「注入的数据」合规形态：路径值由 record 字段携带入账，模板经 {{feedback_file?}} 占位符消费，不属 prompt 文案自由路径。" },
     "pr_id": { "type": "string" },
     "spec_pr_id": { "type": "string" },
     "claimed_by": { "type": "string" }

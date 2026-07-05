@@ -36,6 +36,7 @@ check "workflows/spec-gen/contracts/pr.schema.json"
 check "workflows/spec-gen/contracts/spec-pr.schema.json"
 check "workflows/spec-gen/contracts/trigger.schema.json"
 check "workflows/spec-gen/contracts/verdict.schema.json"
+check "tests/pointer-records.test.sh"
 
 ENGINE_ROOT="${LOOP_ENGINE_ROOT:-/data/code/self/loop-engine}"
 ENGINE_DIST_FLEET="$ENGINE_ROOT/dist/fleet.js"
@@ -629,6 +630,15 @@ if bash "$ROOT/tests/pipeline-contracts.test.sh"; then
   echo "ok: pipeline-contracts tests passed"
 else
   echo "FAIL: pipeline-contracts tests failed" >&2
+  fail=1
+fi
+
+# --- pointer-records static tests (SPEC-005-b3-pointer-records) ---
+echo "running pointer-records static tests"
+if bash "$ROOT/tests/pointer-records.test.sh"; then
+  echo "ok: pointer-records tests passed"
+else
+  echo "FAIL: pointer-records tests failed" >&2
   fail=1
 fi
 

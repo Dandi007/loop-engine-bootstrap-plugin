@@ -3,6 +3,10 @@ harness:
   sh: { runtime: bash, write: false }
 routes:
   trigger: "{{trigger_store_dir}}"
+io:
+  in: { queue: pr, contract: contracts/pr.schema.json }
+  out:
+    trigger: contracts/trigger.schema.json
 seed:
   - identity: spec-checker
     mode: fresh

@@ -4,6 +4,11 @@ harness:
 routes:
   trigger: "{{trigger_store_dir}}"
   idea: "{{idea_store_dir}}"
+io:
+  in: { queue: verdict, contract: contracts/verdict.schema.json }
+  out:
+    trigger: contracts/trigger.schema.json
+    idea: contracts/idea.schema.json
 seed:
   - identity: spec-reworker
     mode: fresh

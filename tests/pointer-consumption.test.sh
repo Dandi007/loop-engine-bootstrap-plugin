@@ -93,22 +93,27 @@ fi
 # 豁免依据：plan-b3 定案「指针三元组=SSoT；spec_file 保留为派生物化字段（dd-plugin
 # 4 消费点豁免区零改动+锚）」。
 # 教训锚：plugin PR #6（edb1a85）——清零断言必须配豁免白名单/保留锚，防误伤豁免项。
+# B4 收编（SPEC-007）：work/review/rework 已透传 triplet，恰 0 锚缩至 deploy；收编面的恰 3 锚移交 tests/input-primitives.test.sh TC-2。
 # ---------------------------------------------------------------------------
 if [ ! -d "$DD_PLUGIN_ROOT/workflows/spec" ]; then
   echo "SKIP: TC-D1 dd-plugin workflows/spec unavailable at $DD_PLUGIN_ROOT" >&2
 else
   tc_d1_fail=0
-  dd_tpls=( "$DD_PLUGIN_ROOT"/workflows/spec/{work,review,deploy,rework}/templates/*.md )
-  triplet_count="$(grep -REc '\{\{ *(repo|commit|spec_path)\??' "${dd_tpls[@]}" 2>/dev/null | awk -F: '{s+=$NF} END{print s+0}' || true)"
+  # B4 收编（SPEC-007）：triplet 恰 0 锚只对未收编的 deploy 柱继续成立；
+  # work/review/rework 已透传可选 triplet（dd PR #4），归 input-primitives TC-2 断言。
+  dd_zero_tpls=( "$DD_PLUGIN_ROOT"/workflows/spec/deploy/templates/*.md )
+  triplet_count="$(grep -REc '\{\{ *(repo|commit|spec_path)\??' "${dd_zero_tpls[@]}" 2>/dev/null | awk -F: '{s+=$NF} END{print s+0}' || true)"
   [ "$triplet_count" -eq 0 ] \
-    || { echo "FAIL: TC-D1 dd-plugin triplet placeholder count=$triplet_count expected 0" >&2; tc_d1_fail=1; }
-  for f in "${dd_tpls[@]}"; do
+    || { echo "FAIL: TC-D1 dd-plugin triplet placeholder count=$triplet_count expected 0 (deploy only)" >&2; tc_d1_fail=1; }
+  # {{spec_file}} 保留断言维持四模板全量（spec_file 派生物化字段本批不收编，§6）。
+  dd_sf_tpls=( "$DD_PLUGIN_ROOT"/workflows/spec/{work,review,deploy,rework}/templates/*.md )
+  for f in "${dd_sf_tpls[@]}"; do
     sf_count="$(grep -c '{{spec_file}}' "$f" || true)"
     [ "$sf_count" -ge 1 ] \
       || { echo "FAIL: TC-D1 $f missing {{spec_file}} retention anchor (count=$sf_count)" >&2; tc_d1_fail=1; }
   done
   if [ "$tc_d1_fail" -eq 0 ]; then
-    echo "ok: TC-D1 dd 豁免锚（triplet 恰 0 + {{spec_file}} 保留断言成对）"
+    echo "ok: TC-D1 dd 豁免锚（triplet 恰 0 缩至 deploy + {{spec_file}} 保留断言四模板成对）"
   else
     fail=1
   fi

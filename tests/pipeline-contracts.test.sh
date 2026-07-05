@@ -108,7 +108,7 @@ trap 'rm -rf "$FIXTURE_DIR"' EXIT
 # Good records (TC-4): one per class. trigger uses the -r<epoch> rework-suffix
 # id variant; verdict has both pr_id and spec_pr_id variants (2 examples).
 cat > "$FIXTURE_DIR/good-trigger.json" <<'JSON'
-{"schema":"trigger","expect":"pass","record":{"id":"SPEC-170-b2-pipeline-contracts-r1783237261","status":"done","spec_file":"/tmp/SPEC-170.md","feedback":"(none)","spec_id":"SPEC-170"}}
+{"schema":"trigger","expect":"pass","record":{"id":"SPEC-170-b2-pipeline-contracts-r1783237261","status":"done","spec_file":"/tmp/SPEC-170.md","feedback":"(none)","spec_id":"SPEC-170","repo":"/data/code/self/loop-engine","commit":"a1b2c3d4e5f60718293a4b5c6d7e8f9012345678","spec_path":"docs/specs/SPEC-170.md"}}
 JSON
 cat > "$FIXTURE_DIR/good-pr.json" <<'JSON'
 {"schema":"pr","expect":"pass","record":{"id":"pr-SPEC-004","status":"checking","spec_id":"SPEC-004","spec_file":"/tmp/SPEC-004.md","branch":"dd/SPEC-004","base_commit":"abc123","diff":"...","diff_file":"/tmp/x.diff","claimed_by":"spec-check"}}
@@ -120,7 +120,7 @@ cat > "$FIXTURE_DIR/good-verdict-specpr.json" <<'JSON'
 {"schema":"verdict","expect":"pass","record":{"id":"verdict-SPEC-005","status":"reworked","spec_id":"SPEC-005","verdict":"REJECT","feedback":"too vague","spec_pr_id":"spec-pr-SPEC-005"}}
 JSON
 cat > "$FIXTURE_DIR/good-spec-pr.json" <<'JSON'
-{"schema":"spec-pr","expect":"pass","record":{"id":"spec-pr-SPEC-001","status":"reviewing","spec_id":"SPEC-001","spec_file":"/tmp/SPEC-001.md","claimed_by":"spec-review"}}
+{"schema":"spec-pr","expect":"pass","record":{"id":"spec-pr-SPEC-001","status":"reviewing","spec_id":"SPEC-001","spec_file":"/tmp/SPEC-001.md","claimed_by":"spec-review","repo":"/data/code/self/loop-engine","commit":"a1b2c3d4e5f60718293a4b5c6d7e8f9012345678","spec_path":"docs/specs/SPEC-001.md"}}
 JSON
 cat > "$FIXTURE_DIR/good-idea.json" <<'JSON'
 {"schema":"idea","expect":"pass","record":{"id":"idea-bootstrap-seed","status":"open","feedback":"bootstrap seed idea","feedback_file":"","spec_file":""}}
@@ -142,7 +142,7 @@ JSON
 
 # Wide-input regression (TC-6, INV-3): pr record with unknown fields must PASS
 cat > "$FIXTURE_DIR/wide-pr.json" <<'JSON'
-{"schema":"pr","expect":"pass","record":{"id":"pr-SPEC-009","status":"ready","spec_id":"SPEC-009","spec_file":"/tmp/SPEC-009.md","branch":"dd/SPEC-009","base_commit":"abc123","repo":"loop-engine","commit":"def456"}}
+{"schema":"pr","expect":"pass","record":{"id":"pr-SPEC-009","status":"ready","spec_id":"SPEC-009","spec_file":"/tmp/SPEC-009.md","branch":"dd/SPEC-009","base_commit":"abc123","zzz_b4_future":"x"}}
 JSON
 
 if ! ENGINE_ROOT="$ENGINE_ROOT" ROOT="$ROOT" FIXTURE_DIR="$FIXTURE_DIR" node -e '

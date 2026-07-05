@@ -31,6 +31,11 @@ check "workflows/spec-gen/merger/templates/merger.md"
 check "bin/bootstrap-loop.sh"
 check "bin/bootstrap-continuous.sh"
 check "scripts/render-template.mjs"
+check "workflows/spec-gen/contracts/idea.schema.json"
+check "workflows/spec-gen/contracts/pr.schema.json"
+check "workflows/spec-gen/contracts/spec-pr.schema.json"
+check "workflows/spec-gen/contracts/trigger.schema.json"
+check "workflows/spec-gen/contracts/verdict.schema.json"
 
 ENGINE_ROOT="${LOOP_ENGINE_ROOT:-/data/code/self/loop-engine}"
 ENGINE_DIST_FLEET="$ENGINE_ROOT/dist/fleet.js"
@@ -615,6 +620,15 @@ if bash "$ROOT/tests/complete-effect.test.sh"; then
   echo "ok: complete-effect tests passed"
 else
   echo "FAIL: complete-effect tests failed" >&2
+  fail=1
+fi
+
+# --- pipeline-contracts static tests (SPEC-003-b2-pipeline-contracts) ---
+echo "running pipeline-contracts static tests"
+if bash "$ROOT/tests/pipeline-contracts.test.sh"; then
+  echo "ok: pipeline-contracts tests passed"
+else
+  echo "FAIL: pipeline-contracts tests failed" >&2
   fail=1
 fi
 

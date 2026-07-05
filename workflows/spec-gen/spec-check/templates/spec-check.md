@@ -39,13 +39,12 @@ if [ -z "$commit_v" ]; then
   fi
 fi
 
-# INV-3 guard: the approved spec must exist on the implementation branch.
+# INV-3 guard: the approved spec pointer must be resolvable in the workspace clone.
 # 注：本检查是快速预检；最终裁决以目标 repo `make gate`（scripts/mr-gate.sh）为准。
-# We check the branch tree directly (not the diff) because the spec file is
-# committed to main by the drafter before the work branch is created.
-# git show needs a repo-relative path, so strip the workspace_repo prefix.
-rel_spec_file="${spec_file#$repo/}"
-if git -C "$repo" show "$branch":"$rel_spec_file" >/dev/null 2>&1; then
+# 守卫语义升级（SPEC-006 INV-7）：从「spec 在 impl 分支树上」改为「指针在 workspace
+# 可解析」——git show 改用 commit 而非 branch。worker 分支不含 spec 文件时守卫不再
+# 拦截；分支内容纪律仍由 deploy-verify 的 accept_cmd 执法。
+if [ -n "$commit_v" ] && git -C "${repo_v:-$repo}" show "$commit_v:$spec_path_v" >/dev/null 2>&1; then
   RESULT="spec-check passed $pr_id" node -e '
 process.stdout.write(JSON.stringify({
   result: process.env.RESULT,
@@ -67,7 +66,7 @@ process.stdout.write(JSON.stringify({
         id: process.env.REDO_SPEC_ID,
         status: "open",
         spec_file: process.env.SPEC_FILE,
-        feedback: "REJECT: the approved spec file is missing from the implementation branch. Ensure the spec file is committed to the branch and try again.",
+        feedback: "REJECT: spec pointer unresolvable (repo=$repo_v commit=$commit_v path=$spec_path_v). Re-commit the spec and re-inject, or fix the workspace clone.",
         repo: process.env.REPO_V,
         commit: process.env.COMMIT_V,
         spec_path: process.env.SPEC_PATH_V,

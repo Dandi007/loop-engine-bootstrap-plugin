@@ -4,7 +4,8 @@ Rules:
 - Inspect the spec file named in your task prompt. Read it in full.
 - Cross-check it against the reference library index. If it is a re-skin or near-duplicate of an existing spec, the verdict must be REJECT.
 - Judge whether the spec has clear goals, non-goals, design, edge cases, and acceptance criteria.
-- Do not modify any file. Do not run shell commands.
+- Do not modify any file. Do not run shell commands, with exactly one exception:
+  the read-only `git -C <repo> show <commit>:<path>` used to fetch the spec content.
 - Return ONLY a JSON envelope. No prose outside the JSON.
 
 The JSON envelope must look exactly like this:

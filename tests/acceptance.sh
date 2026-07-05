@@ -319,6 +319,7 @@ RENDER
   echo "spec" > "$sc_repo/docs/specs/SPEC-004.md"
   git -C "$sc_repo" add .
   git -C "$sc_repo" commit -q -m "impl"
+  sc_spec_commit="$(git -C "$sc_repo" rev-parse HEAD)"
   store_put "$sc_pr" "$(printf '{"id":"pr-SPEC-004","status":"checking","spec_id":"SPEC-004","spec_file":"%s/docs/specs/SPEC-004.md","branch":"dd/SPEC-004","base_commit":"%s"}' "$sc_repo" "$sc_base")"
   sc_script="$sc_pass_root/run.sh"
   render_template "$ROOT/workflows/spec-gen/spec-check/templates/spec-check.md" "$sc_script" \
@@ -330,7 +331,10 @@ RENDER
     "trigger_store_dir=$sc_trigger" \
     "pr_id=pr-SPEC-004" \
     "spec_id=SPEC-004" \
-    "spec_file=$sc_repo/docs/specs/SPEC-004.md"
+    "spec_file=$sc_repo/docs/specs/SPEC-004.md" \
+    "repo=$sc_repo" \
+    "commit=$sc_spec_commit" \
+    "spec_path=docs/specs/SPEC-004.md"
   sc_pass_out="$(bash "$sc_script")"
   # SPEC-002: template emits complete ready-to-deploy; engine applies it via
   # completeRecord. The template no longer advances the PR record directly.

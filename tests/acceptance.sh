@@ -38,6 +38,7 @@ check "workflows/spec-gen/contracts/trigger.schema.json"
 check "workflows/spec-gen/contracts/verdict.schema.json"
 check "tests/pointer-records.test.sh"
 check "tests/pointer-consumption.test.sh"
+check "tests/input-primitives.test.sh"
 check "bin/spec-inject.sh"
 
 ENGINE_ROOT="${LOOP_ENGINE_ROOT:-/data/code/self/loop-engine}"
@@ -654,6 +655,15 @@ if bash "$ROOT/tests/pointer-consumption.test.sh"; then
   echo "ok: pointer-consumption tests passed"
 else
   echo "FAIL: pointer-consumption tests failed" >&2
+  fail=1
+fi
+
+# --- input-primitives tests (SPEC-007-b4-input-primitives-anchors) ---
+echo "running input-primitives tests"
+if bash "$ROOT/tests/input-primitives.test.sh"; then
+  echo "ok: input-primitives tests passed"
+else
+  echo "FAIL: input-primitives tests failed" >&2
   fail=1
 fi
 

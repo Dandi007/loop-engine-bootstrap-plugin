@@ -37,6 +37,8 @@ check "workflows/spec-gen/contracts/spec-pr.schema.json"
 check "workflows/spec-gen/contracts/trigger.schema.json"
 check "workflows/spec-gen/contracts/verdict.schema.json"
 check "tests/pointer-records.test.sh"
+check "tests/pointer-consumption.test.sh"
+check "bin/spec-inject.sh"
 
 ENGINE_ROOT="${LOOP_ENGINE_ROOT:-/data/code/self/loop-engine}"
 ENGINE_DIST_FLEET="$ENGINE_ROOT/dist/fleet.js"
@@ -161,10 +163,10 @@ NODE
   RENDERED_FLEET_IMPL="$RENDERED_FLEET_IMPL" node "$impl_check_js" || fail=1
   rm -f "$impl_check_js"
 
-  # INV-1: bin/ contains bootstrap-loop.sh and bootstrap-continuous.sh.
+  # INV-1: bin/ contains bootstrap-loop.sh, bootstrap-continuous.sh, and spec-inject.sh (SPEC-006).
   bin_scripts=($(find "$ROOT/bin" -maxdepth 1 -type f ! -name '.gitkeep' | sort))
-  if [ "${#bin_scripts[@]}" -eq 2 ] && [ "$(basename "${bin_scripts[0]}")" = "bootstrap-continuous.sh" ] && [ "$(basename "${bin_scripts[1]}")" = "bootstrap-loop.sh" ]; then
-    echo "ok: bin/ has bootstrap-continuous.sh + bootstrap-loop.sh"
+  if [ "${#bin_scripts[@]}" -eq 3 ] && [ "$(basename "${bin_scripts[0]}")" = "bootstrap-continuous.sh" ] && [ "$(basename "${bin_scripts[1]}")" = "bootstrap-loop.sh" ] && [ "$(basename "${bin_scripts[2]}")" = "spec-inject.sh" ]; then
+    echo "ok: bin/ has bootstrap-continuous.sh + bootstrap-loop.sh + spec-inject.sh"
   else
     echo "FAIL: bin/ contains unexpected scripts: ${bin_scripts[*]}" >&2
     fail=1
@@ -643,6 +645,15 @@ if bash "$ROOT/tests/pointer-records.test.sh"; then
   echo "ok: pointer-records tests passed"
 else
   echo "FAIL: pointer-records tests failed" >&2
+  fail=1
+fi
+
+# --- pointer-consumption tests (SPEC-006-b3-pointer-consumption-inject-tool) ---
+echo "running pointer-consumption tests"
+if bash "$ROOT/tests/pointer-consumption.test.sh"; then
+  echo "ok: pointer-consumption tests passed"
+else
+  echo "FAIL: pointer-consumption tests failed" >&2
   fail=1
 fi
 

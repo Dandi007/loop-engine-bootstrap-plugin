@@ -3,7 +3,11 @@ set -euo pipefail
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RUN_ID="${BOOT_RUN_ID:-$(date +%Y%m%d-%H%M%S)}"
-RUN_ROOT="${BOOT_RUN_ROOT:-$HOME/.loop-engine/bootstrap/$RUN_ID}"
+# 收口：invocation scratch（stores/workspace/fleet 等）落统一 runtime root 下的 caller 工作区
+# root/work/bootstrap/<id>，与引擎的 uuid run 输出目录 root/runs/<uuid> 解耦。root 从 config SSoT 读。
+LE_ROOT="$(node -e 'try{const c=JSON.parse(require("fs").readFileSync(require("os").homedir()+"/.config/loop-engine/config.json","utf8"));process.stdout.write(c.runtimeRoot||"")}catch{}')"
+LE_ROOT="${LE_ROOT:-$HOME/.loop-engine}"
+RUN_ROOT="${BOOT_RUN_ROOT:-$LE_ROOT/work/bootstrap/$RUN_ID}"
 
 LOOP_ENGINE_CLI="${LOOP_ENGINE_CLI:-/data/code/self/loop-engine/dist/cli.js}"
 LOOP_STORE_CLI="${LOOP_STORE_CLI:-/data/code/self/loop-engine/dist/lib/store-cli.js}"
@@ -35,7 +39,8 @@ fi
 
 mkdir -p "$RUN_ROOT"
 export PLUGIN_ROOT RUN_ROOT LOOP_ENGINE_CLI LOOP_STORE_CLI DD_PLUGIN_ROOT
-export LOOP_ENGINE_RUNTIME_ROOT="${LOOP_ENGINE_RUNTIME_ROOT:-$HOME/.loop-engine}"
+# 不再强制 LOOP_ENGINE_RUNTIME_ROOT（那会覆盖 config SSoT）；drain 落点由引擎按统一 root 自动分配。
+export LOOP_ENGINE_CALLER="${LOOP_ENGINE_CALLER:-bootstrap}"
 
 # Store directories (same as before, PR_STORE_DIR reused for merge statuses).
 export IDEA_STORE_DIR="$RUN_ROOT/stores/idea"
@@ -104,22 +109,25 @@ node "$PLUGIN_ROOT/scripts/render-template.mjs" \
 # === PHASE 1: Batch draft + parallel impl + verify ===
 echo "[bootstrap-loop] Phase 1: batch draft + parallel impl + verify"
 echo "[bootstrap-loop] run_root=$RUN_ROOT target=$BOOT_TARGET_REPO"
-impl_result=$(node "$LOOP_ENGINE_CLI" drain "$FLEET_IMPL" "$RUN_ROOT/runs/impl" 2>&1) || true
+impl_result=$(node "$LOOP_ENGINE_CLI" drain "$FLEET_IMPL" --label impl 2>&1) || true
 echo "$impl_result"
+# 从 drain 终局 stdout 取实际 runs_root（引擎自动分配的 root/runs/<uuid>）供 loop-events 定位。
+impl_runs_root=$(printf '%s' "$impl_result" | tail -1 | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).runs_root||"")}catch{}})')
 
 # loop 层事件正门（design §3.1）：Phase 1 结束 → 进入 merge。
 # 写入刚结束阶段（impl）的 runs root；观测旁路，失败容忍（|| true），不中断主流程。
-node "$LOOP_EVENTS_CLI" append --runs-root "$RUN_ROOT/runs/impl" \
+[ -n "$impl_runs_root" ] && node "$LOOP_EVENTS_CLI" append --runs-root "$impl_runs_root" \
   --kind phase_change --label bootstrap --detail '{"from":"impl","to":"merge"}' || true
 
 # === PHASE 2: Sequential merge ===
 echo "[bootstrap-loop] Phase 2: sequential merge"
-merge_result=$(node "$LOOP_ENGINE_CLI" drain "$FLEET_MERGE" "$RUN_ROOT/runs/merge" 2>&1) || true
+merge_result=$(node "$LOOP_ENGINE_CLI" drain "$FLEET_MERGE" --label merge 2>&1) || true
 echo "$merge_result"
+merge_runs_root=$(printf '%s' "$merge_result" | tail -1 | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(JSON.parse(s).runs_root||"")}catch{}})')
 
 # loop 层事件正门（design §3.1）：Phase 2 结束 → done。
 # 写入刚结束阶段（merge）的 runs root；观测旁路，失败容忍（|| true），不中断主流程。
-node "$LOOP_EVENTS_CLI" append --runs-root "$RUN_ROOT/runs/merge" \
+[ -n "$merge_runs_root" ] && node "$LOOP_EVENTS_CLI" append --runs-root "$merge_runs_root" \
   --kind phase_change --label bootstrap --detail '{"from":"merge","to":"done"}' || true
 
 echo "[bootstrap-loop] batch complete"

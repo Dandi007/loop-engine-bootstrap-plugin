@@ -33,6 +33,7 @@ pipelines:
       ref_library_dir: ${REF_LIBRARY_DIR}
       ref_library_index: ${REF_LIBRARY_INDEX}
       model: ${BOOT_REVIEW_MODEL}
+      runtime: ${BOOT_REVIEW_RUNTIME}
       claude_config_dir: ${BOOT_CLAUDE_CONFIG_DIR}
     claim:
       store_dir: ${SPEC_PR_STORE_DIR}
@@ -107,6 +108,7 @@ pipelines:
       workspace_repo: ${WORKSPACE_REPO}
       verdict_store_dir: ${VERDICT_STORE_DIR}
       model: ${DD_REVIEW_MODEL}
+      runtime: ${DD_REVIEW_RUNTIME}
       claude_config_dir: ${DD_CLAUDE_CONFIG_DIR}
     claim:
       store_dir: ${PR_STORE_DIR}

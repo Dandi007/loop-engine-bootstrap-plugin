@@ -1,7 +1,7 @@
 limits: { max_nodes: 2, wall_clock: 3600, node_timeout: 3400, max_retries: 1, concurrency: 1 }
 harness:
   spec-reviewer:
-    runtime: claude-code
+    runtime: "{{runtime}}"
     model: "{{model}}"
     write: false
     workspace: "{{workspace_repo}}"

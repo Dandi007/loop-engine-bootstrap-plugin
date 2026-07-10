@@ -14,6 +14,30 @@ LOOP_STORE_CLI="${LOOP_STORE_CLI:-/data/code/self/loop-engine/dist/lib/store-cli
 LOOP_EVENTS_CLI="${LOOP_EVENTS_CLI:-$(dirname "$LOOP_ENGINE_CLI")/lib/loop-events-cli.js}"
 DD_PLUGIN_ROOT="${DD_PLUGIN_ROOT:-/data/code/self/loop-engine-dev-dispatch-plugin}"
 
+# Model–Provider–Runtime 三元表接线：若设了 <prefix>_SELECT（如 BOOT_DRAFT_SELECT=glm/code-plan），
+# 用 loop-engine 的 model-resolver 解析成 (runtime, model) 覆盖 <prefix>_RUNTIME/<prefix>_MODEL。
+# 未设 SELECT / 未知选择器 / resolver 缺失 → 保留既有直传值（向后兼容）。resolver 是 engine dist
+# （缺 .js 扩展名 ESM），须带 engine 的 extension-loader（裸 node 会 ERR_MODULE_NOT_FOUND；loader
+# 从 resolver 路径派生）。
+LOOP_MODEL_RESOLVER="${LOOP_MODEL_RESOLVER:-$(dirname "$LOOP_ENGINE_CLI")/lib/model-resolver.js}"
+LOOP_ENGINE_ESM_LOADER="${LOOP_ENGINE_ESM_LOADER:-$(cd "$(dirname "$LOOP_MODEL_RESOLVER")/../.." 2>/dev/null && pwd)/scripts/register-node-esm-extension-loader.mjs}"
+resolve_select() {
+  local prefix="$1"
+  local select_var="${prefix}_SELECT"
+  local select="${!select_var:-}"
+  [ -z "$select" ] && return 0
+  local kv
+  if kv="$(node --import "$LOOP_ENGINE_ESM_LOADER" "$LOOP_MODEL_RESOLVER" "$select" 2>/dev/null)"; then
+    local RUNTIME MODEL PROVIDER
+    eval "$kv"
+    export "${prefix}_RUNTIME=$RUNTIME"
+    export "${prefix}_MODEL=$MODEL"
+    echo "[bootstrap-loop] ${prefix} ← selector '${select}' → runtime=${RUNTIME} model=${MODEL}"
+  else
+    echo "[bootstrap-loop] WARN: selector '${select}' 未知或 resolver 不可用，${prefix} 保留直传" >&2
+  fi
+}
+
 require_file() {
   local path="$1"
   local label="$2"
@@ -60,11 +84,19 @@ export FLEET_MERGE="$RUN_ROOT/fleet-merge.yaml"
 export BOOT_DRAFT_MODEL="${BOOT_DRAFT_MODEL:-set_claude_ccswitch_glm}"
 export BOOT_DRAFT_RUNTIME="${BOOT_DRAFT_RUNTIME:-claude-code}"
 export BOOT_REVIEW_MODEL="${BOOT_REVIEW_MODEL:-set_claude_ccswitch_glm}"
+export BOOT_REVIEW_RUNTIME="${BOOT_REVIEW_RUNTIME:-claude-code}"
 export BOOT_CLAUDE_CONFIG_DIR="${BOOT_CLAUDE_CONFIG_DIR:-$RUN_ROOT/.claude-lingzhi}"
 export DD_WORK_MODEL="${DD_WORK_MODEL:-$BOOT_DRAFT_MODEL}"
 export DD_WORK_RUNTIME="${DD_WORK_RUNTIME:-claude-code}"
 export DD_REVIEW_MODEL="${DD_REVIEW_MODEL:-set_claude_ccswitch_glm}"
+export DD_REVIEW_RUNTIME="${DD_REVIEW_RUNTIME:-claude-code}"
 export DD_CLAUDE_CONFIG_DIR="${DD_CLAUDE_CONFIG_DIR:-$BOOT_CLAUDE_CONFIG_DIR}"
+# SELECT 优先：设了就用三元表覆盖上面的 RUNTIME/MODEL 直传缺省。draft/work 是实现 agent，
+# review（spec 层 + dd 层）是审查 agent，四条 lane 都可独立经三元表选择 runtime+model。
+resolve_select BOOT_DRAFT
+resolve_select BOOT_REVIEW
+resolve_select DD_WORK
+resolve_select DD_REVIEW
 export DD_ACCEPT_CMD="${DD_ACCEPT_CMD:-make gate BASE=origin/main BRANCH=\$(git rev-parse --abbrev-ref HEAD)}"
 export BOOT_MAX_PASSES="${BOOT_MAX_PASSES:-64}"
 export BOOT_MERGE_MAX_PASSES="${BOOT_MERGE_MAX_PASSES:-16}"

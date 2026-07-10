@@ -80,6 +80,7 @@ pipelines:
     config_dir: ${DD_PLUGIN_ROOT}/workflows/spec/work
     input:
       workspace_repo: ${WORKSPACE_REPO}
+      base_branch: ${WORKSPACE_BASE_BRANCH}
       diff_dir: ${DIFF_DIR}
       pr_store_dir: ${PR_STORE_DIR}
       model: ${DD_WORK_MODEL}
